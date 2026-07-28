@@ -56,8 +56,13 @@ const DEMO_MODE =
   process.env.NEXT_PUBLIC_KICLOUD_DEMO_MODE === "true" ||
   process.env.KICLOUD_DEMO_MODE === "true";
 
-const API_ID = Number(process.env.TELEGRAM_API_ID || "0");
-const API_HASH = process.env.TELEGRAM_API_HASH || "";
+// NEXT_PUBLIC_ префикс обязателен — иначе переменная не попадёт в клиентский bundle.
+// API_ID/API_HASH не являются секретами (идентифицируют приложение, не пользователя).
+const API_ID = Number(
+  process.env.NEXT_PUBLIC_TELEGRAM_API_ID || process.env.TELEGRAM_API_ID || "0"
+);
+const API_HASH =
+  process.env.NEXT_PUBLIC_TELEGRAM_API_HASH || process.env.TELEGRAM_API_HASH || "";
 
 export function getCloudClient(): CloudClient {
   if (client) return client;
