@@ -426,28 +426,52 @@ class GramjsCloudClient implements CloudClient {
     const channelId = await this.ensureStorageChannel();
 
     console.log(`[cloud] uploadFile → "${fileName}" (${data.byteLength} bytes) to topic ${topicId}`);
+    console.log("[cloud] channelId type:", channelId?.className || typeof channelId);
 
     // ВАЖНО: gramjs поддерживает нативный browser File напрямую (см. client/uploads.d.ts).
     // НЕ используем CustomFile/Buffer — они требуют Node.js polyfills и ломаются в браузере.
-    // File → gramjs сам вызывает upload.saveFile + sendFile с прогрессом.
     const file = new File([data], fileName, {
       type: "application/octet-stream",
     });
+    console.log("[cloud] File created, size:", file.size, "name:", file.name);
 
-    console.log("[cloud] sendFile (with auto-upload)...");
-    const message = await tg.sendFile(channelId, {
-      file,
-      caption: fileName,
-      forceDocument: true, // не сжимать, отправить как документ
-      replyTo: topicId,    // forum topic
-      progressCallback: (sent: number, total: number) => {
-        console.log(`[cloud] upload progress: ${sent}/${total}`);
-        onProgress?.(sent, total);
-      },
-    });
-
-    console.log("[cloud] uploadFile ✓ messageId:", message?.id);
-    return String(message.id);
+    try {
+      console.log("[cloud] sendFile (with auto-upload)...");
+      // Для forum topics нужно использовать topMsgId (НЕ replyTo).
+      const message = await tg.sendFile(channelId, {
+        file,
+        caption: fileName,
+        forceDocument: true,   // не сжимать, отправить как документ
+        topMsgId: topicId,     // forum topic ID
+        progressCallback: (sent: number, total: number) => {
+          console.log(`[cloud] upload progress: ${sent}/${total}`);
+          onProgress?.(sent, total);
+        },
+      });
+      console.log("[cloud] uploadFile ✓ messageId:", message?.id);
+      return String(message.id);
+    } catch (e: any) {
+      console.error("[cloud] uploadFile FAILED:", e?.errorMessage || e?.message, e);
+      const errMsg = e?.errorMessage || e?.message || String(e);
+      // Человеко-читаемые ошибки
+      if (errMsg === "CHAT_ADMIN_REQUIRED" || errMsg === "CHAT_WRITE_FORBIDDEN") {
+        throw new Error("Нет прав на запись в канал-хранилище. Обратитесь к поддержке.");
+      }
+      if (errMsg === "TOPIC_CLOSED") {
+        throw new Error("Папка закрыта. Создайте новую.");
+      }
+      if (errMsg === "TOPIC_DELETED") {
+        throw new Error("Папка удалена. Обновите список.");
+      }
+      if (errMsg.startsWith("FLOOD") || e?.seconds > 0) {
+        const sec = e?.seconds || 30;
+        throw new Error(`Слишком много загрузок. Подождите ${Math.ceil(sec / 60)} мин.`);
+      }
+      if (errMsg === "FILE_PARTS_INVALID" || errMsg === "FILE_PART_LENGTH_INVALID") {
+        throw new Error("Файл слишком большой или повреждён.");
+      }
+      throw new Error(`Ошибка загрузки: ${errMsg}`);
+    }
   }
 
   async downloadFile(
@@ -537,8 +561,17 @@ class GramjsCloudClient implements CloudClient {
       (d: any) => d.title === "kicloud Storage" && d.isChannel
     );
     if (existing) {
+      // Получаем InputEntity (нужно для sendFile/invoke)
+      let entityId = existing.entity;
+      if (!entityId) {
+        try {
+          entityId = await tg.getInputEntity(existing.id);
+        } catch {
+          entityId = existing.id;
+        }
+      }
       console.log("[cloud] found existing storage channel:", existing.id?.toString());
-      this.storageChannelId = existing.entity;
+      this.storageChannelId = entityId;
       return this.storageChannelId;
     }
 
@@ -558,6 +591,7 @@ class GramjsCloudClient implements CloudClient {
       throw new Error("Не удалось создать канал-хранилище");
     }
     console.log("[cloud] storage channel created:", channel.id?.toString());
+    // channel уже является Api.Channel объектом — его можно передавать как entity
     this.storageChannelId = channel;
     return this.storageChannelId;
   }
