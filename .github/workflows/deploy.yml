@@ -32,8 +32,9 @@ jobs:
           # Demo mode — false для реального подключения
           KICLOUD_DEMO_MODE: "false"
           NEXT_PUBLIC_KICLOUD_DEMO_MODE: "false"
-          # basePath: /kicloud для репозитория kicloud
-          # Для кастомного домена оставьте пустым
+          # basePath: пусто для кастомного домена (https://cloud.example.com)
+          # или /kicloud для https://username.github.io/kicloud
+          # Используем variables.BASE_PATH если задана, иначе пусто.
           NEXT_PUBLIC_BASE_PATH: ${{ vars.BASE_PATH }}
           NODE_ENV: production
         run: bun run build
