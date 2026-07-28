@@ -170,67 +170,60 @@ class GramjsCloudClient implements CloudClient {
   async sendCode(phone: string): Promise<SendCodeResult> {
     this.ensureBrowser();
     const tg = await this.getTg();
-    const { Api } = await import("telegram");
 
     console.log("[cloud] sendCode →", phone);
 
-    // После getTg() connection может быть в процессе DC migration.
-    // Ждём пока соединение стабилизируется.
-    await new Promise((r) => setTimeout(r, 1500));
+    // Используем хелпер tg.sendCode — он корректно обрабатывает
+    // PHONE_MIGRATE_X (DC migration) БЕЗ повторных запросов к старому DC,
+    // что avoids FLOOD_WAIT от Telegram.
+    // Добавляем timeout на случай зависания.
+    try {
+      const result = await Promise.race([
+        tg.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, phone),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("TIMEOUT_30S")), 30000)
+        ),
+      ]);
+      console.log("[cloud] sendCode ✓", result);
+      return {
+        phoneCodeHash: (result as any).phoneCodeHash,
+        isCodeViaApp: (result as any).isCodeViaApp ?? false,
+      };
+    } catch (e: any) {
+      const errMsg = e?.errorMessage || e?.message || String(e);
+      console.warn("[cloud] sendCode failed:", errMsg, e);
 
-    // Прямой invoke Api.auth.SendCode с timeout — gramjs иногда зависает
-    // после DC migration. Timeout + retry решает проблему.
-    let lastError: Error | null = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`[cloud] sendCode attempt ${attempt}`);
-        const result = await Promise.race([
-          tg.invoke(
-            new Api.auth.SendCode({
-              phoneNumber: phone,
-              apiId: this.apiId,
-              apiHash: this.apiHash,
-              settings: new Api.CodeSettings({}),
-            })
-          ),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("TIMEOUT")), 12000)
-          ),
-        ]);
-        console.log("[cloud] sendCode ✓ attempt", attempt, result);
-        return {
-          phoneCodeHash: (result as any).phoneCodeHash,
-          isCodeViaApp: (result as any).isCodeViaApp ?? false,
-        };
-      } catch (e: any) {
-        lastError = e;
-        const errMsg = e?.errorMessage || e?.message || "";
-        console.warn(`[cloud] sendCode attempt ${attempt} failed:`, errMsg);
-
-        // FloodWait — слишком много запросов
-        if (errMsg.startsWith("FLOOD_WAIT_")) {
-          const seconds = Number(errMsg.split("_")[2]) || 30;
-          throw new Error(
-            `Слишком много попыток. Подождите ${seconds}s и попробуйте снова.`
-          );
-        }
-        if (errMsg === "PHONE_NUMBER_INVALID") {
-          throw new Error("Неверный формат номера телефона");
-        }
-        if (errMsg === "PHONE_NUMBER_BANNED") {
-          throw new Error("Этот номер забанен в Telegram");
-        }
-        if (errMsg === "AUTH_KEY_PERM_EMPTY") {
-          // Сессия невалидна — переподключаемся
-          console.log("[cloud] reinitializing session");
-          this.tg = null;
-          await this.getTg();
-        }
-        // TIMEOUT, PHONE_MIGRATE_X, USER_MIGRATE_X — retry после паузы
-        await new Promise((r) => setTimeout(r, 2000));
+      if (errMsg.startsWith("FLOOD_WAIT_")) {
+        const seconds = Number(errMsg.split("_")[2]) || 30;
+        const mins = Math.ceil(seconds / 60);
+        throw new Error(
+          `Слишком много попыток входа. Подождите ${mins} мин. и попробуйте снова.`
+        );
       }
+      if (errMsg === "PHONE_NUMBER_INVALID") {
+        throw new Error("Неверный формат номера телефона");
+      }
+      if (errMsg === "PHONE_NUMBER_BANNED") {
+        throw new Error("Этот номер заблокирован в Telegram");
+      }
+      if (errMsg === "PHONE_NUMBER_FLOOD") {
+        throw new Error(
+          "Слишком много запросов на этот номер. Попробуйте позже."
+        );
+      }
+      if (errMsg === "AUTH_KEY_PERM_EMPTY") {
+        // Сессия невалидна — переподключаемся с новой сессией
+        console.log("[cloud] reinitializing session (AUTH_KEY_PERM_EMPTY)");
+        this.tg = null;
+        return this.sendCode(phone); // рекурсивный retry один раз
+      }
+      if (errMsg === "TIMEOUT_30S") {
+        throw new Error(
+          "Таймаут подключения к Telegram. Проверьте интернет и попробуйте снова."
+        );
+      }
+      throw e;
     }
-    throw lastError ?? new Error("sendCode failed after 3 attempts");
   }
 
   async signIn(params: {
