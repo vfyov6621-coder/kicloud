@@ -103,9 +103,28 @@ class GramjsCloudClient implements CloudClient {
   private async getTg(sessionString?: string): Promise<any> {
     this.ensureBrowser();
     // Если клиент уже создан — возвращаем существующий.
-    // sessionString передаётся только при validateSession (восстановление сессии).
+    // sessionString передаётся ТОЛЬКО при validateSession (восстановление сессии после reload).
+    // Все остальные методы (sendCode, signIn, uploadFile, и т.д.) вызывают getTg() без аргументов —
+    // клиент уже авторизован, НЕ нужно переподключаться.
     if (this.tg && !sessionString) {
-      return this.tg;
+      // Проверяем, что клиент подключён. Если нет — переподключаем.
+      if (this.tg.connected) {
+        return this.tg;
+      }
+      console.log("[cloud] client exists but disconnected, reconnecting...");
+      try {
+        await Promise.race([
+          this.tg.connect(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("CONNECT_TIMEOUT")), 8000)
+          ),
+        ]);
+        console.log("[cloud] reconnected ✓");
+      } catch (e) {
+        console.warn("[cloud] reconnect failed, trying fresh client:", e);
+        this.tg = null;
+      }
+      if (this.tg) return this.tg;
     }
     // Если нужно восстановить сессию и клиент уже есть — переподключаем
     if (this.tg && sessionString) {
@@ -120,7 +139,9 @@ class GramjsCloudClient implements CloudClient {
     // Динамический import — gramjs загружается только в браузере
     const { TelegramClient } = await import("telegram");
     const { StringSession } = await import("telegram/sessions");
-    const stringSession = new StringSession(sessionString ?? "");
+    // Если sessionString не передан, используем сохранённую сессию (this.session)
+    const sessStr = sessionString ?? this.session?.sessionString ?? "";
+    const stringSession = new StringSession(sessStr);
     this.tg = new TelegramClient(stringSession, this.apiId, this.apiHash, {
       connectionRetries: 5,
       autoReconnect: true,
@@ -360,7 +381,7 @@ class GramjsCloudClient implements CloudClient {
 
   async createFolder(name: string): Promise<number> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     console.log(`[cloud] createFolder "${name}"`);
@@ -390,7 +411,7 @@ class GramjsCloudClient implements CloudClient {
 
   async editFolder(topicId: number, name: string): Promise<void> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     await tg.invoke(
@@ -404,7 +425,7 @@ class GramjsCloudClient implements CloudClient {
 
   async deleteFolder(topicId: number): Promise<void> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     await tg.invoke(
@@ -422,7 +443,7 @@ class GramjsCloudClient implements CloudClient {
     onProgress?: (sent: number, total: number) => void
   ): Promise<string> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
 
     console.log(`[cloud] uploadFile → "${fileName}" (${data.byteLength} bytes) to topic ${topicId}`);
@@ -483,7 +504,7 @@ class GramjsCloudClient implements CloudClient {
     onProgress?: (received: number, total: number) => void
   ): Promise<ArrayBuffer> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     const messageId = Number(fileId);
 
@@ -534,21 +555,21 @@ class GramjsCloudClient implements CloudClient {
 
   async deleteMessages(messageId: number): Promise<void> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     await tg.deleteMessages(channelId, [messageId], { revoke: true });
   }
 
   async editMessageCaption(messageId: number, newCaption: string): Promise<void> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     await tg.editMessage(channelId, { message: messageId, text: newCaption });
   }
 
   async forwardMessage(messageId: number, targetTopicId: number): Promise<number> {
     this.ensureBrowser();
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     const result = await tg.forwardMessages(channelId, [messageId], channelId, {
       withMyScore: false,
@@ -563,7 +584,7 @@ class GramjsCloudClient implements CloudClient {
   /** Получить или создать приватный канал-хранилище */
   private async ensureStorageChannel(): Promise<any> {
     if (this.storageChannelId) return this.storageChannelId;
-    const tg = await this.getTg(this.session?.sessionString);
+    const tg = await this.getTg();
     const { Api } = await import("telegram");
 
     console.log("[cloud] ensureStorageChannel: searching for existing channel...");
