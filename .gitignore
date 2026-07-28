@@ -73,3 +73,5 @@ Caddyfile
 /tests/
 /prisma/
 /db/
+# Local deploy scripts (contain tokens — never commit)
+/scripts/
