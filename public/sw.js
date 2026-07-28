@@ -1,10 +1,9 @@
 /**
- * TCloud Service Worker
- * ТЗ 8.1: offline-доступ к метаданным и настройкам.
- * network-first для MTProto, cache-first для статики.
+ * kicloud Service Worker
+ * Cache-first для статики, network-first для навигации.
  */
 
-const CACHE_NAME = "tcloud-v2";
+const CACHE_NAME = "kicloud-v2";
 const STATIC_ASSETS = ["/", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -27,18 +26,16 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-
-  // Только GET
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
 
-  // network-first для всего, что идёт к Telegram DC (WebSocket или HTTPS)
+  // Не кэшируем запросы к Telegram DC (WebSocket/HTTPS)
   if (url.hostname.endsWith(".telegram.org") || url.hostname.endsWith(".t.me")) {
-    return; // не кэшируем
+    return;
   }
 
-  // cache-first для статики
+  // Cache-first для статики
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|woff|woff2|ico)$/)
@@ -58,7 +55,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // network-first с fallback на кэш для навигации
+  // Network-first для навигации
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)

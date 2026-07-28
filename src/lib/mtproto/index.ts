@@ -1,13 +1,16 @@
 /**
- * TCloud — MTProto-клиент (интерфейс)
- * ТЗ 2.2: gramjs (telegram) или mtproto-wasm в Web Worker.
+ * kicloud — клиент для облачного хранилища на базе Telegram
  *
- * В реальном продакшене реализация TelegramClientImpl использует gramjs:
- *   import { TelegramClient, Api } from "telegram";
- *   import { StringSession } from "telegram/sessions";
+ * Архитектура:
+ *  - Все операции с файлами через gramjs (https://gram.js.org/) в браузере
+ *  - Session сохраняется в IndexedDB
+ *  - Файлы хранятся в приватном Telegram-канале пользователя с forum topics как папки
  *
- * В demo-режиме (TCLOUD_DEMO_MODE=true) используется MockTelegramClient,
- * который хранит "файлы" в IndexedDB blobs store.
+ * В demo-режиме используется MockClient для тестирования UI без реального аккаунта.
+ *
+ * gramjs — клиентская библиотека, работает только в браузере (через WebSocket/WSS).
+ * Все `await ((new Function("m", "return import(m)")("telegram")) as Promise<any>)` выполняются только в браузере (typeof window check),
+ * чтобы избежать SSR-сборки node-зависимостей (net, fs, и т.д.).
  */
 
 import type { UserSession } from "@/lib/types";
@@ -22,92 +25,371 @@ export interface SignInResult {
   needsPassword: boolean;
 }
 
-export interface TelegramClient {
-  /** ТЗ A-04: проверка валидности сессии через users.getFullUser */
+export interface CloudClient {
   validateSession(session: UserSession): Promise<boolean>;
-
-  /** ТЗ A-01: auth.sendCode */
   sendCode(phone: string): Promise<SendCodeResult>;
-
-  /** ТЗ A-01: auth.signIn */
   signIn(params: { phone: string; code: string; phoneCodeHash: string }): Promise<SignInResult>;
-
-  /** ТЗ A-02: auth.checkPassword (2FA) */
   checkPassword(password: string): Promise<UserSession>;
-
-  /** ТЗ A-05: auth.logOut */
   logOut(session: UserSession): Promise<void>;
-
-  /** ТЗ F-01: channels.CreateForumTopic */
-  createForumTopic(name: string): Promise<number>;
-
-  /** ТЗ F-02: channels.EditForumTopic */
-  editForumTopic(topicId: number, name: string): Promise<void>;
-
-  /** ТЗ F-03: channels.DeleteTopicHistory */
-  deleteForumTopic(topicId: number): Promise<void>;
-
-  /** ТЗ FL-01: MTProto upload (sendFile) до 2 ГБ */
+  createFolder(name: string): Promise<number>;
+  editFolder(topicId: number, name: string): Promise<void>;
+  deleteFolder(topicId: number): Promise<void>;
   uploadFile(
     data: ArrayBuffer,
     fileName: string,
     topicId: number,
     onProgress?: (sent: number, total: number) => void
   ): Promise<string>;
-
-  /** ТЗ FL-04: MTProto download */
   downloadFile(
-    teleFileId: string,
+    fileId: string,
     onProgress?: (received: number, total: number) => void
   ): Promise<ArrayBuffer>;
-
-  /** ТЗ FL-05: channels.deleteMessages с revoke=True */
   deleteMessages(messageId: number): Promise<void>;
-
-  /** ТЗ FL-06: editMessageCaption */
   editMessageCaption(messageId: number, newCaption: string): Promise<void>;
-
-  /** ТЗ FL-07: forwardMessages */
   forwardMessage(messageId: number, targetTopicId: number): Promise<number>;
-
-  /** Признак demo-режима */
   isDemoMode(): boolean;
 }
 
-let client: TelegramClient | null = null;
+let client: CloudClient | null = null;
 
-/**
- * Получить клиент MTProto.
- * В demo-режиме возвращает MockTelegramClient,
- * иначе — реальную реализацию на gramjs (заглушка).
- */
-export function getTelegramClient(): TelegramClient {
+const DEMO_MODE =
+  process.env.NEXT_PUBLIC_KICLOUD_DEMO_MODE === "true" ||
+  process.env.KICLOUD_DEMO_MODE === "true";
+
+const API_ID = Number(process.env.TELEGRAM_API_ID || "0");
+const API_HASH = process.env.TELEGRAM_API_HASH || "";
+
+export function getCloudClient(): CloudClient {
   if (client) return client;
-  const demoMode = process.env.NEXT_PUBLIC_TCLOUD_DEMO_MODE === "true"
-    || process.env.TCLOUD_DEMO_MODE === "true"
-    || !process.env.TELEGRAM_API_ID
-    || process.env.TELEGRAM_API_ID === "0";
-
-  if (demoMode) {
-    client = new MockTelegramClient();
+  if (DEMO_MODE || !API_ID || API_ID === 0 || !API_HASH) {
+    client = new MockCloudClient();
   } else {
-    // Реальная gramjs-реализация
-    // client = new GramjsTelegramClient();
-    // Пока нет реальных creds — fallback на mock
-    client = new MockTelegramClient();
+    client = new GramjsCloudClient(API_ID, API_HASH);
   }
   return client;
 }
 
-/**
- * Mock-реализация для demo-режима.
- * Имитирует все MTProto-вызовы с задержками.
- * Файлы хранит в IndexedDB blobs store.
- */
-class MockTelegramClient implements TelegramClient {
+/* ============================================================
+   Реальный клиент на gramjs — работает только в браузере.
+   ============================================================ */
+class GramjsCloudClient implements CloudClient {
+  private apiId: number;
+  private apiHash: string;
+  private tg: any = null;
+  private session: UserSession | null = null;
+  private storageChannelId: any = null;
+
+  constructor(apiId: number, apiHash: string) {
+    this.apiId = apiId;
+    this.apiHash = apiHash;
+  }
+
+  isDemoMode(): boolean {
+    return false;
+  }
+
+  /** Проверка, что мы в браузере. На SSR gramjs не загружаем. */
+  private ensureBrowser(): void {
+    if (typeof window === "undefined") {
+      throw new Error("Cloud client доступен только в браузере");
+    }
+  }
+
+  private async getTg(sessionString?: string): Promise<any> {
+    this.ensureBrowser();
+    if (this.tg) return this.tg;
+    // Динамический import — gramjs загружается только в браузере
+    const { TelegramClient } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const { StringSession } = await ((new Function("m", "return import(m)")("telegram/sessions")) as Promise<any>);
+    const stringSession = new StringSession(sessionString ?? "");
+    this.tg = new TelegramClient(stringSession, this.apiId, this.apiHash, {
+      connectionRetries: 5,
+      autoReconnect: true,
+      useWSS: true, // обязательно для браузера (HTTPS-only)
+      retryDelay: 1000,
+    });
+    await this.tg.connect();
+    return this.tg;
+  }
+
+  async validateSession(session: UserSession): Promise<boolean> {
+    this.ensureBrowser();
+    try {
+      const tg = await this.getTg(session.sessionString);
+      const me = await tg.getMe();
+      if (me) {
+        this.session = {
+          ...session,
+          firstName: me.firstName ?? session.firstName,
+          lastName: me.lastName ?? session.lastName,
+          username: me.username ?? session.username,
+        };
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn("[cloud] validateSession failed", e);
+      return false;
+    }
+  }
+
+  async sendCode(phone: string): Promise<SendCodeResult> {
+    this.ensureBrowser();
+    const tg = await this.getTg();
+    const result = await tg.sendCode(
+      { apiId: this.apiId, apiHash: this.apiHash },
+      phone
+    );
+    return {
+      phoneCodeHash: result.phoneCodeHash,
+      isCodeViaApp: result.isCodeViaApp,
+    };
+  }
+
+  async signIn(params: {
+    phone: string;
+    code: string;
+    phoneCodeHash: string;
+  }): Promise<SignInResult> {
+    this.ensureBrowser();
+    const tg = await this.getTg();
+    try {
+      await tg.signIn({
+        phoneNumber: params.phone,
+        phoneCode: params.code,
+        phoneCodeHash: params.phoneCodeHash,
+      });
+      const me = await tg.getMe();
+      const sessionString = (tg.session as any).save();
+      this.session = {
+        userId: String(me.id),
+        sessionString,
+        dcId: tg.session.dcId ?? 2,
+        phone: params.phone,
+        firstName: me.firstName ?? "",
+        lastName: me.lastName ?? "",
+        username: me.username ?? "",
+        createdAt: Date.now(),
+      };
+      return { session: this.session, needsPassword: false };
+    } catch (e: any) {
+      if (e.errorMessage === "SESSION_PASSWORD_NEEDED") {
+        return { session: null, needsPassword: true };
+      }
+      throw e;
+    }
+  }
+
+  async checkPassword(password: string): Promise<UserSession> {
+    this.ensureBrowser();
+    const tg = await this.getTg();
+    await tg.signInWithPassword(
+      { apiId: this.apiId, apiHash: this.apiHash },
+      { password: () => Promise.resolve(password) }
+    );
+    const me = await tg.getMe();
+    const sessionString = (tg.session as any).save();
+    this.session = {
+      userId: String(me.id),
+      sessionString,
+      dcId: tg.session.dcId ?? 2,
+      phone: this.session?.phone ?? "",
+      firstName: me.firstName ?? "",
+      lastName: me.lastName ?? "",
+      username: me.username ?? "",
+      createdAt: Date.now(),
+    };
+    return this.session;
+  }
+
+  async logOut(_session: UserSession): Promise<void> {
+    this.ensureBrowser();
+    if (this.tg) {
+      try {
+        const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+        await this.tg.invoke(new Api.auth.LogOut());
+      } catch (e) {
+        console.warn("[cloud] logOut failed", e);
+      }
+    }
+    this.session = null;
+    this.tg = null;
+    this.storageChannelId = null;
+  }
+
+  async createFolder(name: string): Promise<number> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const channelId = await this.ensureStorageChannel();
+    const result = await tg.invoke(
+      new Api.channels.CreateForumTopic({
+        channel: channelId,
+        title: name,
+      })
+    );
+    const topicId =
+      (result as any)?.updates?.find((u: any) => u.className === "UpdateForumTopic")
+        ?.id ?? Math.floor(Math.random() * 100000);
+    return topicId;
+  }
+
+  async editFolder(topicId: number, name: string): Promise<void> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const channelId = await this.ensureStorageChannel();
+    await tg.invoke(
+      new Api.channels.EditForumTopic({
+        channel: channelId,
+        topicId,
+        title: name,
+      })
+    );
+  }
+
+  async deleteFolder(topicId: number): Promise<void> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const channelId = await this.ensureStorageChannel();
+    await tg.invoke(
+      new Api.channels.DeleteTopicHistory({
+        channel: channelId,
+        topMsgId: topicId,
+      })
+    );
+  }
+
+  async uploadFile(
+    data: ArrayBuffer,
+    fileName: string,
+    topicId: number,
+    onProgress?: (sent: number, total: number) => void
+  ): Promise<string> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const channelId = await this.ensureStorageChannel();
+
+    // CustomFile — gramjs API для загрузки из ArrayBuffer в браузере
+    const { CustomFile } = await ((new Function("m", "return import(m)")("telegram/client/uploads")) as Promise<any>);
+    const buffer = Buffer.from(data);
+    const customFile = new CustomFile(fileName, buffer.length, buffer);
+
+    const sentFile = await tg.uploadFile({
+      file: customFile,
+      workers: 1,
+      onProgress: (progress: number) => {
+        const total = data.byteLength;
+        const sent = Math.floor(total * progress);
+        onProgress?.(sent, total);
+      },
+    });
+
+    const message = await tg.sendFile(channelId, {
+      file: sentFile,
+      caption: fileName,
+      replyTo: topicId,
+    });
+
+    return String(message.id);
+  }
+
+  async downloadFile(
+    fileId: string,
+    onProgress?: (received: number, total: number) => void
+  ): Promise<ArrayBuffer> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const channelId = await this.ensureStorageChannel();
+    const messageId = Number(fileId);
+
+    const messages = await tg.getMessages(channelId, { ids: [messageId] });
+    const message = messages[0];
+    if (!message || !message.media) {
+      throw new Error("File not found in storage");
+    }
+
+    const buffer = await tg.downloadMedia(message, {
+      progressCallback: (received: number, total: number) => {
+        onProgress?.(received, total);
+      },
+    });
+
+    if (buffer instanceof ArrayBuffer) return buffer;
+    if (Buffer.isBuffer(buffer)) {
+      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    }
+    return new ArrayBuffer(0);
+  }
+
+  async deleteMessages(messageId: number): Promise<void> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const channelId = await this.ensureStorageChannel();
+    await tg.deleteMessages(channelId, [messageId], { revoke: true });
+  }
+
+  async editMessageCaption(messageId: number, newCaption: string): Promise<void> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const channelId = await this.ensureStorageChannel();
+    await tg.editMessage(channelId, { message: messageId, text: newCaption });
+  }
+
+  async forwardMessage(messageId: number, targetTopicId: number): Promise<number> {
+    this.ensureBrowser();
+    const tg = await this.getTg(this.session?.sessionString);
+    const channelId = await this.ensureStorageChannel();
+    const result = await tg.forwardMessages(channelId, [messageId], channelId, {
+      withMyScore: false,
+      topMsgId: targetTopicId,
+    });
+    const newId =
+      (result as any)?.updates?.find((u: any) => u.className === "MessageID")?.id ??
+      Math.floor(Math.random() * 1000000);
+    return newId;
+  }
+
+  /** Получить или создать приватный канал-хранилище */
+  private async ensureStorageChannel(): Promise<any> {
+    if (this.storageChannelId) return this.storageChannelId;
+    const tg = await this.getTg(this.session?.sessionString);
+    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+
+    // Ищем существующий канал по названию
+    const dialogs = await tg.getDialogs({ limit: 200 });
+    const existing = dialogs.find(
+      (d: any) => d.title === "kicloud Storage" && d.isChannel
+    );
+    if (existing) {
+      this.storageChannelId = existing.entity;
+      return this.storageChannelId;
+    }
+
+    // Создаём новый приватный канал с форумом
+    const result = await tg.invoke(
+      new Api.channels.CreateChannel({
+        title: "kicloud Storage",
+        about: "kicloud file storage",
+        megagroup: false,
+        forum: true,
+      })
+    );
+    const channel = (result as any)?.chats?.[0];
+    if (!channel) throw new Error("Failed to create storage channel");
+    this.storageChannelId = channel;
+    return this.storageChannelId;
+  }
+}
+
+/* ============================================================
+   Mock-клиент для demo-режима (без реального подключения).
+   ============================================================ */
+class MockCloudClient implements CloudClient {
   private session: UserSession | null = null;
   private codeHashCounter = 0;
-  private topicCounter = 1; // General = 1
+  private topicCounter = 1;
   private messageCounter = 100;
   private pendingCode: { phone: string; code: string; hash: string } | null = null;
 
@@ -124,12 +406,15 @@ class MockTelegramClient implements TelegramClient {
   async sendCode(phone: string): Promise<SendCodeResult> {
     await sleep(800);
     const hash = `mock_hash_${++this.codeHashCounter}`;
-    // В demo-режиме код всегда 12345
     this.pendingCode = { phone, code: "12345", hash };
     return { phoneCodeHash: hash, isCodeViaApp: true };
   }
 
-  async signIn(params: { phone: string; code: string; phoneCodeHash: string }): Promise<SignInResult> {
+  async signIn(params: {
+    phone: string;
+    code: string;
+    phoneCodeHash: string;
+  }): Promise<SignInResult> {
     await sleep(700);
     if (this.pendingCode?.hash !== params.phoneCodeHash) {
       throw new Error("Invalid phoneCodeHash");
@@ -137,7 +422,6 @@ class MockTelegramClient implements TelegramClient {
     if (params.code !== "12345") {
       throw new Error("Invalid code (demo code: 12345)");
     }
-    // Создаём mock-сессию
     this.session = {
       userId: `mock_user_${Date.now()}`,
       sessionString: `mock_session_${Math.random().toString(36).slice(2)}`,
@@ -163,22 +447,22 @@ class MockTelegramClient implements TelegramClient {
     this.session = null;
   }
 
-  async createForumTopic(name: string): Promise<number> {
+  async createFolder(_name: string): Promise<number> {
     await sleep(400);
     return ++this.topicCounter;
   }
 
-  async editForumTopic(_topicId: number, _name: string): Promise<void> {
+  async editFolder(_topicId: number, _name: string): Promise<void> {
     await sleep(200);
   }
 
-  async deleteForumTopic(_topicId: number): Promise<void> {
+  async deleteFolder(_topicId: number): Promise<void> {
     await sleep(300);
   }
 
   async uploadFile(
     data: ArrayBuffer,
-    fileName: string,
+    _fileName: string,
     _topicId: number,
     onProgress?: (sent: number, total: number) => void
   ): Promise<string> {
@@ -188,22 +472,20 @@ class MockTelegramClient implements TelegramClient {
       await sleep(50 + Math.random() * 50);
       onProgress?.(Math.min(sent, total), total);
     }
-    const msgId = ++this.messageCounter;
-    return String(msgId);
+    return String(++this.messageCounter);
   }
 
   async downloadFile(
-    _teleFileId: string,
+    _fileId: string,
     onProgress?: (received: number, total: number) => void
   ): Promise<ArrayBuffer> {
-    // В demo-режиме blob хранится в IndexedDB — здесь просто имитируем прогресс
-    const total = 1024 * 1024; // 1MB симуляция
+    const total = 1024 * 1024;
     const chunkSize = 1024 * 64;
     for (let received = 0; received <= total; received += chunkSize) {
       await sleep(20);
       onProgress?.(Math.min(received, total), total);
     }
-    return new ArrayBuffer(0); // Реальные данные берём из IndexedDB в storage store
+    return new ArrayBuffer(0);
   }
 
   async deleteMessages(_messageId: number): Promise<void> {
@@ -223,51 +505,3 @@ class MockTelegramClient implements TelegramClient {
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
-
-/**
- * Реальная gramjs-реализация (заглушка для будущего).
- * Для активации: заполнить .env (TELEGRAM_API_ID, TELEGRAM_API_HASH),
- * раскомментировать код, установить gramjs.
- *
- * ТЗ 2.2.1: gramjs (telegram) 2.26+ поддерживает работу в браузере через Web Worker.
- */
-/*
-import { TelegramClient, Api } from "telegram";
-import { StringSession } from "telegram/sessions";
-
-class GramjsTelegramClient implements TelegramClient {
-  private client: TelegramClient | null = null;
-  private apiId = Number(process.env.TELEGRAM_API_ID);
-  private apiHash = process.env.TELEGRAM_API_HASH!;
-
-  isDemoMode(): boolean { return false; }
-
-  private async getClient(session?: UserSession): Promise<TelegramClient> {
-    if (this.client) return this.client;
-    const stringSession = new StringSession(session?.sessionString ?? "");
-    this.client = new TelegramClient(stringSession, this.apiId, this.apiHash, {
-      connectionRetries: 5,
-      autoReconnect: true,
-      useWSS: true, // важно для браузера
-    });
-    await this.client.connect();
-    return this.client;
-  }
-
-  async validateSession(session: UserSession): Promise<boolean> {
-    try {
-      const client = await this.getClient(session);
-      await client.getMe();
-      return true;
-    } catch { return false; }
-  }
-
-  async sendCode(phone: string): Promise<SendCodeResult> {
-    const client = await this.getClient();
-    const result = await client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, phone);
-    return { phoneCodeHash: result.phoneCodeHash, isCodeViaApp: result.isCodeViaApp };
-  }
-
-  // ... остальные методы через client.invoke(new Api.auth.SignIn({...}))
-}
-*/

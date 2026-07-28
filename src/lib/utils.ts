@@ -1,5 +1,5 @@
 /**
- * TCloud — утилиты
+ * kicloud — утилиты
  * Вспомогательные функции из ТЗ раздел 10 (src/lib/utils.ts)
  */
 
@@ -49,10 +49,10 @@ export function getFileIcon(mimeType: string, name: string = ""): string {
  * Цветовое представление размера для прогресс-бара.
  */
 export function getProgressColor(percent: number): string {
-  if (percent < 30) return "var(--tc-link)";
-  if (percent < 70) return "var(--tc-success)";
-  if (percent < 95) return "var(--tc-warning)";
-  return "var(--tc-success)";
+  if (percent < 30) return "var(--kc-link)";
+  if (percent < 70) return "var(--kc-success)";
+  if (percent < 95) return "var(--kc-warning)";
+  return "var(--kc-success)";
 }
 
 /**

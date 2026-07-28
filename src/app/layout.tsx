@@ -17,23 +17,22 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TCloud — Telegram Cloud Storage",
+  title: "kicloud — облачное хранилище файлов",
   description:
-    "Облачное хранилище файлов, использующее Telegram в качестве бессерверного бэкенда. Клиентский MTProto, AES-256-CBC шифрование, Apple Liquid Glass дизайн.",
+    "Бесплатное облачное хранилище файлов с AES-256 шифрованием. Файлы до 2 ГБ, без серверов, без подписок.",
   keywords: [
-    "TCloud",
-    "Telegram",
-    "Cloud Storage",
-    "MTProto",
-    "Liquid Glass",
-    "PWA",
+    "kicloud",
+    "cloud storage",
+    "облачное хранилище",
+    "free storage",
+    "encrypted files",
   ],
-  authors: [{ name: "TCloud" }],
+  authors: [{ name: "kicloud" }],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "TCloud",
+    statusBarStyle: "default",
+    title: "kicloud",
   },
   icons: {
     icon: "/icon.svg",
@@ -43,8 +42,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
   width: "device-width",
   initialScale: 1,

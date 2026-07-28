@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — SettingsPanel
+ * kicloud — SettingsPanel
  * ТЗ 6.2.3: iOS Settings-style. Секции: Аккаунт, Шифрование, Оформление, Язык, Хранилище, О приложении.
  * ТЗ S-01..S-06.
  */
@@ -33,11 +33,11 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 const COLOR_PRESETS = [
-  { id: "mono", name: "settings.presetMono", primary: "#000000", accent: "#333333", bg: "#f2f2f7" },
-  { id: "blue", name: "settings.presetBlue", primary: "#0066cc", accent: "#0a84ff", bg: "#f0f6ff" },
-  { id: "green", name: "settings.presetGreen", primary: "#0a7c43", accent: "#34c759", bg: "#f0fdf4" },
-  { id: "red", name: "settings.presetRed", primary: "#cc1f1a", accent: "#ff3b30", bg: "#fef2f2" },
-  { id: "purple", name: "settings.presetPurple", primary: "#6b21a8", accent: "#af52de", bg: "#faf5ff" },
+  { id: "mono", name: "settings.presetMono", primary: "#0f172a", accent: "#64748b", bg: "#ffffff" },
+  { id: "blue", name: "settings.presetBlue", primary: "#1e40af", accent: "#3b82f6", bg: "#eff6ff" },
+  { id: "green", name: "settings.presetGreen", primary: "#15803d", accent: "#10b981", bg: "#ecfdf5" },
+  { id: "red", name: "settings.presetRed", primary: "#b91c1c", accent: "#ef4444", bg: "#fef2f2" },
+  { id: "purple", name: "settings.presetPurple", primary: "#7c3aed", accent: "#a855f7", bg: "#faf5ff" },
 ];
 
 export function SettingsPanel() {
@@ -117,7 +117,7 @@ export function SettingsPanel() {
             <div className="p-4 flex items-center gap-3">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
-                style={{ background: "var(--tc-link)" }}
+                style={{ background: "var(--kc-link)" }}
               >
                 {userName.slice(0, 2).toUpperCase()}
               </div>
@@ -171,8 +171,8 @@ export function SettingsPanel() {
                       className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
                       style={{
                         background: "rgba(0, 0, 0, 0.04)",
-                        border: "1px solid var(--tc-border)",
-                        color: "var(--tc-primary)",
+                        border: "1px solid var(--kc-border)",
+                        color: "var(--kc-primary)",
                       }}
                     />
                     <p className="text-xs opacity-50 mt-1">
@@ -187,7 +187,7 @@ export function SettingsPanel() {
                     className="flex items-start gap-2 p-3 rounded-xl text-xs"
                     style={{
                       background: "rgba(255, 149, 0, 0.08)",
-                      color: "var(--tc-warning)",
+                      color: "var(--kc-warning)",
                     }}
                   >
                     <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -228,7 +228,7 @@ export function SettingsPanel() {
               </div>
             </div>
 
-            <div className="p-4 border-t" style={{ borderColor: "var(--tc-border)" }}>
+            <div className="p-4 border-t" style={{ borderColor: "var(--kc-border)" }}>
               <div className="font-medium text-[15px] mb-3">{t("settings.presets", language)}</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {COLOR_PRESETS.map((preset) => (
@@ -257,7 +257,7 @@ export function SettingsPanel() {
               </div>
             </div>
 
-            <div className="p-4 border-t" style={{ borderColor: "var(--tc-border)" }}>
+            <div className="p-4 border-t" style={{ borderColor: "var(--kc-border)" }}>
               <div className="font-medium text-[15px] mb-3">{t("settings.colors", language)}</div>
               <ColorRow
                 label={t("settings.primaryColor", language)}
@@ -300,7 +300,7 @@ export function SettingsPanel() {
                     }}
                   >
                     <span className="font-medium">{opt.label}</span>
-                    {language === opt.id && <Check className="w-4 h-4" style={{ color: "var(--tc-link)" }} />}
+                    {language === opt.id && <Check className="w-4 h-4" style={{ color: "var(--kc-link)" }} />}
                   </button>
                 ))}
               </div>
@@ -321,7 +321,7 @@ export function SettingsPanel() {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${Math.min(100, (stats.totalSize / (2 * 1024 * 1024 * 1024)) * 100)}%`,
-                    background: "var(--tc-link)",
+                    background: "var(--kc-link)",
                   }}
                 />
               </div>
@@ -342,9 +342,9 @@ export function SettingsPanel() {
           {/* About section */}
           <Section title={t("settings.about", language)} icon={<Info className="w-4 h-4" />}>
             <Row label={t("settings.version", language)} value="2.0.0" />
-            <Row label="MTProto" value="gramjs (demo)" />
+            <Row label="Движок" value="gramjs" />
             <Row label="Encryption" value="AES-256-CBC + gzip" />
-            <Row label="Format" value=".tcld" />
+            <Row label="Format" value=".kienc" />
             <div className="p-4 text-center text-xs opacity-50">
               {t("settings.buildBy", language)}
             </div>
@@ -373,7 +373,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div
       className="px-4 py-3 flex items-center justify-between border-t"
-      style={{ borderColor: "var(--tc-border)" }}
+      style={{ borderColor: "var(--kc-border)" }}
     >
       <span className="text-sm">{label}</span>
       <span className="text-sm opacity-50 font-medium">{value}</span>

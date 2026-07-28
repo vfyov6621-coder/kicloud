@@ -1,5 +1,5 @@
 /**
- * TCloud — Crypto API
+ * kicloud — Crypto API
  * ТЗ 4.4, 5.2: шифрование/расшифровка через Web Worker
  * Главный поток не блокируется — критично для 60fps анимаций.
  */
@@ -44,7 +44,7 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Зашифровать файл. Возвращает ArrayBuffer в формате .tcld
+ * Зашифровать файл. Возвращает ArrayBuffer в формате .kienc
  * ТЗ E-01..E-05.
  */
 export async function encryptFile(
@@ -65,7 +65,7 @@ export async function encryptFile(
 }
 
 /**
- * Расшифровать файл из формата .tcld
+ * Расшифровать файл из формата .kienc
  * ТЗ E-06.
  */
 export async function decryptFile(

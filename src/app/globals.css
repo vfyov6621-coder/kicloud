@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   TCloud — Apple Liquid Glass Design System
-   CSS-переменные из ТЗ (раздел 3.2), плюс кастомизация RGB
+   kicloud — современный минималистичный дизайн
+   Flat-стиль с мягкими тенями, никаких glassmorphism эффектов.
    ============================================================ */
 
 @theme inline {
@@ -39,100 +39,99 @@
   --color-card: var(--card);
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
 }
 
-/* ---- Базовая тема: монохром Apple (светлая) ---- */
+/* ---- Светлая тема ---- */
 :root {
-  --radius: 16px;
+  --radius: 14px;
 
-  /* TCloud CSS-переменные из ТЗ 3.2 */
-  --tc-primary: #000000;
-  --tc-accent: #333333;
-  --tc-bg: #f2f2f7;
-  --tc-surface: rgba(255, 255, 255, 0.72);
-  --tc-surface-strong: rgba(255, 255, 255, 0.85);
-  --tc-surface-blur: blur(40px) saturate(180%);
-  --tc-border: rgba(0, 0, 0, 0.08);
-  --tc-light-border: rgba(255, 255, 255, 0.3);
-  --tc-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
-  --tc-error: #ff3b30;
-  --tc-link: #007aff;
-  --tc-success: #34c759;
-  --tc-warning: #ff9500;
+  --kc-primary: #0f172a;
+  --kc-accent: #64748b;
+  --kc-bg: #ffffff;
+  --kc-surface: #ffffff;
+  --kc-surface-muted: #f8fafc;
+  --kc-border: #e2e8f0;
+  --kc-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --kc-shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.08);
+  --kc-shadow-lg: 0 12px 32px 0 rgba(0, 0, 0, 0.12);
+  --kc-error: #ef4444;
+  --kc-success: #10b981;
+  --kc-warning: #f59e0b;
+  --kc-link: #3b82f6;
 
   /* shadcn-совместимые алиасы */
-  --background: var(--tc-bg);
-  --foreground: var(--tc-primary);
-  --card: var(--tc-surface-strong);
-  --card-foreground: var(--tc-primary);
-  --popover: rgba(255, 255, 255, 0.92);
-  --popover-foreground: var(--tc-primary);
-  --primary: var(--tc-primary);
+  --background: var(--kc-bg);
+  --foreground: var(--kc-primary);
+  --card: var(--kc-surface);
+  --card-foreground: var(--kc-primary);
+  --popover: var(--kc-surface);
+  --popover-foreground: var(--kc-primary);
+  --primary: var(--kc-primary);
   --primary-foreground: #ffffff;
-  --secondary: rgba(0, 0, 0, 0.05);
-  --secondary-foreground: var(--tc-primary);
-  --muted: rgba(0, 0, 0, 0.04);
-  --muted-foreground: var(--tc-accent);
-  --accent: rgba(0, 0, 0, 0.06);
-  --accent-foreground: var(--tc-primary);
-  --destructive: var(--tc-error);
-  --border: var(--tc-border);
-  --input: rgba(0, 0, 0, 0.06);
-  --ring: var(--tc-link);
-  --sidebar: var(--tc-surface);
-  --sidebar-foreground: var(--tc-primary);
-  --sidebar-primary: var(--tc-primary);
+  --secondary: var(--kc-surface-muted);
+  --secondary-foreground: var(--kc-primary);
+  --muted: var(--kc-surface-muted);
+  --muted-foreground: var(--kc-accent);
+  --accent: var(--kc-surface-muted);
+  --accent-foreground: var(--kc-primary);
+  --destructive: var(--kc-error);
+  --border: var(--kc-border);
+  --input: var(--kc-border);
+  --ring: var(--kc-link);
+  --sidebar: var(--kc-surface-muted);
+  --sidebar-foreground: var(--kc-primary);
+  --sidebar-primary: var(--kc-primary);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(0, 0, 0, 0.06);
-  --sidebar-accent-foreground: var(--tc-primary);
-  --sidebar-border: var(--tc-border);
-  --sidebar-ring: var(--tc-link);
+  --sidebar-accent: var(--kc-surface);
+  --sidebar-accent-foreground: var(--kc-primary);
+  --sidebar-border: var(--kc-border);
+  --sidebar-ring: var(--kc-link);
 }
 
-/* ---- Тёмная тема: монохром Apple (тёмная) ---- */
+/* ---- Тёмная тема ---- */
 .dark {
-  --tc-primary: #ffffff;
-  --tc-accent: #cccccc;
-  --tc-bg: #000000;
-  --tc-surface: rgba(28, 28, 30, 0.72);
-  --tc-surface-strong: rgba(28, 28, 30, 0.88);
-  --tc-surface-blur: blur(40px) saturate(180%);
-  --tc-border: rgba(255, 255, 255, 0.08);
-  --tc-light-border: rgba(255, 255, 255, 0.1);
-  --tc-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-  --tc-error: #ff453a;
-  --tc-link: #0a84ff;
-  --tc-success: #30d158;
-  --tc-warning: #ff9f0a;
+  --kc-primary: #f1f5f9;
+  --kc-accent: #94a3b8;
+  --kc-bg: #0a0a0a;
+  --kc-surface: #18181b;
+  --kc-surface-muted: #27272a;
+  --kc-border: #2e2e33;
+  --kc-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --kc-shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.5);
+  --kc-shadow-lg: 0 12px 32px 0 rgba(0, 0, 0, 0.6);
+  --kc-error: #f87171;
+  --kc-success: #34d399;
+  --kc-warning: #fbbf24;
+  --kc-link: #60a5fa;
 
-  --background: var(--tc-bg);
-  --foreground: var(--tc-primary);
-  --card: var(--tc-surface-strong);
-  --card-foreground: var(--tc-primary);
-  --popover: rgba(28, 28, 30, 0.95);
-  --popover-foreground: var(--tc-primary);
-  --primary: var(--tc-primary);
-  --primary-foreground: #000000;
-  --secondary: rgba(255, 255, 255, 0.08);
-  --secondary-foreground: var(--tc-primary);
-  --muted: rgba(255, 255, 255, 0.05);
-  --muted-foreground: var(--tc-accent);
-  --accent: rgba(255, 255, 255, 0.08);
-  --accent-foreground: var(--tc-primary);
-  --destructive: var(--tc-error);
-  --border: var(--tc-border);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: var(--tc-link);
-  --sidebar: var(--tc-surface);
-  --sidebar-foreground: var(--tc-primary);
-  --sidebar-primary: var(--tc-primary);
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: rgba(255, 255, 255, 0.08);
-  --sidebar-accent-foreground: var(--tc-primary);
-  --sidebar-border: var(--tc-border);
-  --sidebar-ring: var(--tc-link);
+  --background: var(--kc-bg);
+  --foreground: var(--kc-primary);
+  --card: var(--kc-surface);
+  --card-foreground: var(--kc-primary);
+  --popover: var(--kc-surface);
+  --popover-foreground: var(--kc-primary);
+  --primary: var(--kc-primary);
+  --primary-foreground: #0a0a0a;
+  --secondary: var(--kc-surface-muted);
+  --secondary-foreground: var(--kc-primary);
+  --muted: var(--kc-surface-muted);
+  --muted-foreground: var(--kc-accent);
+  --accent: var(--kc-surface-muted);
+  --accent-foreground: var(--kc-primary);
+  --destructive: var(--kc-error);
+  --border: var(--kc-border);
+  --input: var(--kc-border);
+  --ring: var(--kc-link);
+  --sidebar: var(--kc-surface-muted);
+  --sidebar-foreground: var(--kc-primary);
+  --sidebar-primary: var(--kc-primary);
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: var(--kc-surface);
+  --sidebar-accent-foreground: var(--kc-primary);
+  --sidebar-border: var(--kc-border);
+  --sidebar-ring: var(--kc-link);
 }
 
 @layer base {
@@ -144,13 +143,10 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-
-  /* Apple HIG: safe area insets */
   body {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
@@ -160,125 +156,128 @@
 }
 
 /* ============================================================
-   Liquid Glass Components
+   Компоненты — flat-стиль, без glassmorphism
    ============================================================ */
 
-/* Glass Panel — базовый компонент из ТЗ 3.4.1 */
-.glass-panel {
-  background: var(--tc-surface);
-  backdrop-filter: var(--tc-surface-blur);
-  -webkit-backdrop-filter: var(--tc-surface-blur);
-  border: 1px solid var(--tc-border);
-  border-top: 1px solid var(--tc-light-border);
-  box-shadow: var(--tc-shadow);
-  border-radius: 16px;
+/* Surface panel — сплошной фон + тонкая граница + мягкая тень */
+.surface-panel {
+  background: var(--kc-surface);
+  border: 1px solid var(--kc-border);
+  box-shadow: var(--kc-shadow);
+  border-radius: 14px;
 }
 
-.glass-panel-strong {
-  background: var(--tc-surface-strong);
-  backdrop-filter: var(--tc-surface-blur);
-  -webkit-backdrop-filter: var(--tc-surface-blur);
-  border: 1px solid var(--tc-border);
-  border-top: 1px solid var(--tc-light-border);
-  box-shadow: var(--tc-shadow);
-  border-radius: 16px;
+.surface-panel-muted {
+  background: var(--kc-surface-muted);
+  border: 1px solid transparent;
+  border-radius: 14px;
 }
 
-/* Glass Button — ТЗ 3.4.2 */
-.glass-button-primary {
-  background: var(--tc-primary);
-  color: var(--tc-bg);
-  border-radius: 12px;
-  padding: 12px 24px;
+/* Primary button — сплошная заливка, без blur */
+.btn-primary {
+  background: var(--kc-primary);
+  color: var(--kc-bg);
+  border-radius: 10px;
+  padding: 10px 20px;
   font-weight: 600;
-  transition: transform 150ms ease-out, opacity 150ms ease-out;
+  font-size: 14px;
+  transition: transform 120ms ease-out, opacity 120ms ease-out, box-shadow 120ms ease-out;
   border: none;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-shadow: var(--kc-shadow);
 }
-.glass-button-primary:active {
-  transform: scale(0.97);
+.btn-primary:hover {
+  box-shadow: var(--kc-shadow-md);
 }
-.glass-button-primary:disabled {
+.btn-primary:active {
+  transform: scale(0.98);
+}
+.btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.glass-button-ghost {
+.btn-ghost {
   background: transparent;
-  color: var(--tc-primary);
-  border: 1px solid var(--tc-border);
-  border-radius: 12px;
-  padding: 12px 24px;
+  color: var(--kc-primary);
+  border: 1px solid var(--kc-border);
+  border-radius: 10px;
+  padding: 10px 20px;
   font-weight: 600;
-  transition: background 150ms ease-out, transform 150ms ease-out;
+  font-size: 14px;
+  transition: background 120ms ease-out, transform 120ms ease-out;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.glass-button-ghost:hover {
-  background: var(--tc-accent);
-  color: var(--tc-bg);
+.btn-ghost:hover {
+  background: var(--kc-surface-muted);
 }
-.glass-button-ghost:active {
-  transform: scale(0.97);
+.btn-ghost:active {
+  transform: scale(0.98);
 }
 
-/* Liquid background — анимированные blob-формы для AuthScreen */
-.liquid-bg {
+/* Анимированный градиентный фон для auth */
+.auth-bg {
   position: fixed;
   inset: 0;
   overflow: hidden;
   z-index: 0;
-  background: var(--tc-bg);
+  background:
+    radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.08), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(168, 85, 247, 0.06), transparent 50%),
+    var(--kc-bg);
 }
-.liquid-bg::before,
-.liquid-bg::after {
+.auth-bg::before,
+.auth-bg::after {
   content: "";
   position: absolute;
-  width: 60vw;
-  height: 60vw;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.5;
-  animation: liquid-float 18s ease-in-out infinite;
+  filter: blur(120px);
+  opacity: 0.4;
+  animation: blob-float 24s ease-in-out infinite;
 }
-.liquid-bg::before {
-  top: -20%;
-  left: -10%;
-  background: radial-gradient(circle, var(--tc-link) 0%, transparent 70%);
+.auth-bg::before {
+  top: -10%;
+  left: -5%;
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(circle, var(--kc-link) 0%, transparent 70%);
 }
-.liquid-bg::after {
-  bottom: -20%;
-  right: -10%;
-  background: radial-gradient(circle, var(--tc-success) 0%, transparent 70%);
-  animation-delay: -9s;
+.auth-bg::after {
+  bottom: -10%;
+  right: -5%;
+  width: 35vw;
+  height: 35vw;
+  background: radial-gradient(circle, #a855f7 0%, transparent 70%);
+  animation-delay: -12s;
 }
 
-@keyframes liquid-float {
+@keyframes blob-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(5%, 10%) scale(1.1); }
-  66% { transform: translate(-5%, -10%) scale(0.95); }
+  33% { transform: translate(5%, 8%) scale(1.08); }
+  66% { transform: translate(-4%, -6%) scale(0.95); }
 }
 
-/* Tactile hover lift — для карточек */
-.tactile-lift {
-  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 200ms ease-out;
+/* Tactile hover lift */
+.hover-lift {
+  transition: transform 180ms cubic-bezier(0.34, 1.4, 0.64, 1),
+              box-shadow 180ms ease-out;
 }
-.tactile-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.12);
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--kc-shadow-md);
 }
 
-/* Скроллбар в стиле Apple */
+/* Скроллбар */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -287,27 +286,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--tc-border);
+  background: var(--kc-border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--tc-accent);
-}
-
-/* Анимация для прогресс-бара загрузки */
-@keyframes progress-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.progress-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  animation: progress-shimmer 1.5s ease-in-out infinite;
+  background: var(--kc-accent);
 }
 
 /* Hide number input spinners */
@@ -320,24 +303,32 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* SF Pro-like typography scale (ТЗ 3.3) */
-.text-screen-title { font-size: 28px; font-weight: 700; line-height: 1.15; }
-.text-section-title { font-size: 20px; font-weight: 600; line-height: 1.25; }
-.text-subtitle { font-size: 17px; font-weight: 600; line-height: 1.3; }
-.text-body { font-size: 15px; font-weight: 400; line-height: 1.5; }
-.text-secondary { font-size: 13px; font-weight: 400; line-height: 1.45; color: var(--tc-accent); }
-.text-button { font-size: 15px; font-weight: 600; line-height: 1.2; }
-.text-caption { font-size: 12px; font-weight: 500; line-height: 1.3; }
+/* Typography scale */
+.text-screen-title { font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
+.text-section-title { font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
+.text-subtitle { font-size: 15px; font-weight: 600; line-height: 1.4; }
+.text-body { font-size: 14px; font-weight: 400; line-height: 1.5; }
+.text-secondary { font-size: 13px; font-weight: 400; line-height: 1.4; color: var(--kc-accent); }
+.text-button { font-size: 14px; font-weight: 600; line-height: 1.2; }
+.text-caption { font-size: 11px; font-weight: 500; line-height: 1.3; }
 .text-mono { font-family: var(--font-jetbrains-mono), monospace; font-size: 13px; }
 
-/* Selection color */
 ::selection {
-  background: var(--tc-link);
+  background: var(--kc-link);
   color: #ffffff;
 }
 
 /* Drag-and-drop overlay */
 .dropzone-active {
-  background: rgba(0, 122, 255, 0.1);
-  border: 2px dashed var(--tc-link);
+  background: rgba(59, 130, 246, 0.08);
+  border: 2px dashed var(--kc-link);
+}
+
+/* Анимация прогресса */
+@keyframes progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.progress-pulse {
+  animation: progress-pulse 1.4s ease-in-out infinite;
 }

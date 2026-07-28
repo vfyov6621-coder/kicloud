@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — FileCard
+ * kicloud — FileCard
  * ТЗ 3.4.4: квадратная карточка с glass-эффектом, иконка, имя, размер.
  * Hover: lift + shadow. Context menu.
  */
@@ -51,7 +51,7 @@ export function FileCard({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: Math.min(index * 0.02, 0.3), type: "spring", stiffness: 300, damping: 25 }}
           whileHover={{ y: -4 }}
-          className="glass-panel group relative cursor-pointer overflow-hidden"
+          className="surface-panel group relative cursor-pointer overflow-hidden"
           style={{ borderRadius: 16 }}
         >
           {/* Icon area */}

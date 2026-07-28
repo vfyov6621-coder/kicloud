@@ -1,5 +1,5 @@
 /**
- * TCloud — i18n core
+ * kicloud — i18n core
  * ТЗ раздел 7: встроенная система (без next-intl), key-value словарь.
  * Компоненты получают язык из Zustand-стора и вызывают t(key).
  */

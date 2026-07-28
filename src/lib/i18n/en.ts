@@ -1,28 +1,27 @@
 /**
- * TCloud — i18n English dictionary
- * ТЗ раздел 7: src/lib/i18n/en.ts
+ * kicloud — i18n English dictionary
  */
 import type { TranslationDict } from "./ru";
 
 export const en: TranslationDict = {
   // App
   app: {
-    name: "TCloud",
-    tagline: "Telegram Cloud Storage",
+    name: "kicloud",
+    tagline: "Cloud file storage",
   },
 
   // Auth
   auth: {
-    title: "TCloud",
-    subtitle: "Telegram-powered cloud storage",
+    title: "kicloud",
+    subtitle: "Free cloud file storage",
     welcomeBack: "Welcome back",
     stepPhone: "Sign in with phone number",
     stepCode: "Enter confirmation code",
     stepPassword: "Two-factor authentication",
     phoneLabel: "Phone number",
     phonePlaceholder: "+1 555 123-4567",
-    codeLabel: "Code from Telegram",
-    codeHint: "We sent a code to your Telegram app",
+    codeLabel: "Confirmation code",
+    codeHint: "We sent a code to your app",
     passwordLabel: "Cloud password",
     passwordHint: "Enter your two-factor authentication password",
     sendCode: "Send code",
@@ -39,7 +38,7 @@ export const en: TranslationDict = {
     demoModePassword: "Demo mode: any password",
     signingIn: "Signing in…",
     sendingCode: "Sending code…",
-    creatingChannel: "Creating private channel…",
+    creatingChannel: "Initializing storage…",
   },
 
   // Navigation
@@ -124,7 +123,7 @@ export const en: TranslationDict = {
       created: "Created",
       modified: "Modified",
       encrypted: "Encryption",
-      messageId: "Message ID",
+      messageId: "ID",
       fileId: "File ID",
     },
   },
@@ -167,7 +166,7 @@ export const en: TranslationDict = {
     encryptionPassword: "Encryption password",
     encryptionPasswordHint: "Stored in memory only, not persisted",
     encryptionPasswordPlaceholder: "Min 8 characters",
-    encryptionFormat: ".tcld format (TCLD + IV + size + data)",
+    encryptionFormat: "Files are encrypted locally before upload. The key never leaves your device.",
     passwordTooShort: "Password must be at least 8 characters",
     passwordSet: "Password set",
     passwordCleared: "Password cleared",
@@ -181,7 +180,7 @@ export const en: TranslationDict = {
     accentColor: "Accent color",
     backgroundColor: "Background color",
     presets: "Presets",
-    presetMono: "Monochrome",
+    presetMono: "Dark",
     presetBlue: "Blue",
     presetGreen: "Green",
     presetRed: "Red",
@@ -196,10 +195,10 @@ export const en: TranslationDict = {
     foldersCount: "Folders: {count}",
     totalSize: "Total size: {size}",
     clearCache: "Clear cache",
-    clearCacheConfirm: "Clear metadata cache? Files in Telegram will not be deleted.",
+    clearCacheConfirm: "Clear metadata cache? Files in cloud will not be deleted.",
 
     version: "Version",
-    buildBy: "Powered by Telegram MTProto",
+    buildBy: "kicloud — free cloud storage",
   },
 
   // Common
@@ -244,6 +243,6 @@ export const en: TranslationDict = {
     sessionExpired: "Session expired, please sign in again",
     connectionRestored: "Connection restored",
     connectionLost: "Connection lost",
-    demoModeActive: "Demo mode is active. Real MTProto is not connected.",
+    demoModeActive: "Demo mode is active. Real storage is not connected.",
   },
 };

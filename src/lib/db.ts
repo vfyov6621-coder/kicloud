@@ -1,6 +1,6 @@
 /**
- * TCloud — IndexedDB-схема
- * ТЗ раздел 5.3: Database: tcloud-db (version 1)
+ * kicloud — IndexedDB-схема
+ * ТЗ раздел 5.3: Database: kicloud-db (version 1)
  *
  * Stores:
  *  - sessions  { key: userId, value: UserSession }
@@ -20,10 +20,10 @@ import type {
   UserSettings,
 } from "@/lib/types";
 
-const DB_NAME = "tcloud-db";
+const DB_NAME = "kicloud-db";
 const DB_VERSION = 1;
 
-interface TCloudDB extends DBSchema {
+interface kicloudDB extends DBSchema {
   sessions: {
     key: string;
     value: UserSession;
@@ -53,14 +53,14 @@ interface TCloudDB extends DBSchema {
   };
 }
 
-let dbPromise: Promise<IDBPDatabase<TCloudDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<kicloudDB>> | null = null;
 
-export function getDB(): Promise<IDBPDatabase<TCloudDB>> {
+export function getDB(): Promise<IDBPDatabase<kicloudDB>> {
   if (typeof window === "undefined") {
     throw new Error("IndexedDB доступен только в браузере");
   }
   if (!dbPromise) {
-    dbPromise = openDB<TCloudDB>(DB_NAME, DB_VERSION, {
+    dbPromise = openDB<kicloudDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         // sessions
         if (!db.objectStoreNames.contains("sessions")) {

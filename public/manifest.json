@@ -1,12 +1,13 @@
 {
-  "name": "TCloud — Telegram Cloud Storage",
-  "short_name": "TCloud",
-  "description": "Облачное хранилище файлов, использующее Telegram в качестве бессерверного бэкенда. Клиентский MTProto, AES-256-CBC шифрование, Apple Liquid Glass дизайн.",
+  "name": "kicloud — облачное хранилище файлов",
+  "short_name": "kicloud",
+  "description": "Бесплатное облачное хранилище файлов с AES-256 шифрованием. Файлы до 2 ГБ, без серверов, без подписок.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f2f2f7",
-  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
   "categories": ["productivity", "utilities", "storage"],
   "lang": "ru",
   "dir": "ltr",
@@ -16,18 +17,6 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -49,19 +38,5 @@
       "url": "/?view=settings",
       "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
-  ],
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "name",
-      "files": [
-        {
-          "name": "files",
-          "accept": ["*/*"]
-        }
-      ]
-    }
-  }
+  ]
 }

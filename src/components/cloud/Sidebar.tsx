@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * TCloud — Sidebar
- * ТЗ 3.4.3: Glass Sidebar 260px / 72px свёрнутый, emoji-иконки, корзина/настройки внизу.
+ * kicloud — Sidebar
+ * Flat-стиль, 260px / 72px collapsed, emoji-иконки, корзина/настройки внизу.
  */
 
 import { useState } from "react";
@@ -42,8 +42,6 @@ interface SidebarProps {
   onRenameFolder: (folderId: string, currentName: string) => void;
 }
 
-const FOLDER_ICONS = ["📁", "📂", "📄", "🖼️", "🎬", "🎵", "📦", "🔐", "💼", "🎓", "⚡", "🌟"];
-
 export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
   const lang = useSettingsStore((s) => s.language);
   const session = useAuthStore((s) => s.session);
@@ -63,17 +61,14 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
     <motion.aside
       animate={{ width: collapsed ? 72 : 260 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="glass-panel flex flex-col flex-shrink-0 overflow-hidden"
+      className="flex flex-col flex-shrink-0 overflow-hidden border-r"
       style={{
-        borderRadius: 0,
-        borderRight: "1px solid var(--tc-border)",
-        borderLeft: "none",
-        borderTop: "none",
-        borderBottom: "none",
+        background: "var(--kc-surface-muted)",
+        borderColor: "var(--kc-border)",
       }}
     >
       {/* Header: Logo + collapse */}
-      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--tc-border)" }}>
+      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--kc-border)" }}>
         <AnimatePresence mode="wait">
           {!collapsed ? (
             <motion.div
@@ -81,17 +76,17 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2.5"
             >
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                 style={{
-                  background: "linear-gradient(135deg, var(--tc-link) 0%, var(--tc-primary) 100%)",
+                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
                 }}
               >
                 <Cloud className="w-5 h-5 text-white" strokeWidth={2.5} />
               </div>
-              <span className="font-bold text-[17px]">TCloud</span>
+              <span className="font-bold text-[16px] tracking-tight">kicloud</span>
             </motion.div>
           ) : (
             <motion.div
@@ -101,7 +96,7 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
               exit={{ opacity: 0 }}
               className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto"
               style={{
-                background: "linear-gradient(135deg, var(--tc-link) 0%, var(--tc-primary) 100%)",
+                background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
               }}
             >
               <Cloud className="w-5 h-5 text-white" strokeWidth={2.5} />
@@ -124,7 +119,7 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
       <div className="flex-1 overflow-y-auto p-2">
         {!collapsed && (
           <div className="flex items-center justify-between px-2 py-2">
-            <span className="text-caption uppercase tracking-wider opacity-50">
+            <span className="text-caption uppercase tracking-wider opacity-50 font-medium">
               {t("folders.title", lang)}
             </span>
           </div>
@@ -140,17 +135,20 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
                     setCurrentView("files");
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left",
-                    "hover:bg-black/5 dark:hover:bg-white/5",
-                    currentFolderId === folder.id && currentView === "files" && "bg-black/[0.08] dark:bg-white/[0.1]",
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left",
+                    "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+                    currentFolderId === folder.id && currentView === "files" && "bg-black/[0.06] dark:bg-white/[0.08]",
                     collapsed && "justify-center px-0"
                   )}
+                  style={currentFolderId === folder.id && currentView === "files" ? {
+                    boxShadow: "inset 0 0 0 1px var(--kc-border)",
+                  } : {}}
                   title={collapsed ? folder.name : undefined}
                 >
-                  <span className="text-xl flex-shrink-0">{folder.icon}</span>
+                  <span className="text-lg flex-shrink-0">{folder.icon}</span>
                   {!collapsed && (
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-[14px] truncate">{folder.name}</div>
+                      <div className="font-medium text-[13px] truncate">{folder.name}</div>
                       <div className="text-[11px] opacity-50">
                         {t("folders.fileCount", lang, { count: folder.fileCount })}
                       </div>
@@ -184,47 +182,47 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
         <button
           onClick={onCreateFolder}
           className={cn(
-            "mt-2 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-            "hover:bg-black/5 dark:hover:bg-white/5 text-[14px] font-medium",
+            "mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+            "hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-[13px] font-medium",
             "border border-dashed opacity-70 hover:opacity-100",
             collapsed && "justify-center px-0"
           )}
-          style={{ borderColor: "var(--tc-border)" }}
+          style={{ borderColor: "var(--kc-border)" }}
           title={collapsed ? t("folders.create", lang) : undefined}
         >
-          <FolderPlus className="w-5 h-5 flex-shrink-0" />
+          <FolderPlus className="w-[18px] h-[18px] flex-shrink-0" />
           {!collapsed && <span>{t("folders.create", lang)}</span>}
         </button>
       </div>
 
       {/* Footer: account + trash + settings */}
-      <div className="border-t p-2 space-y-0.5" style={{ borderColor: "var(--tc-border)" }}>
+      <div className="border-t p-2 space-y-0.5" style={{ borderColor: "var(--kc-border)" }}>
         <button
           onClick={() => setCurrentView("trash")}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-            "hover:bg-black/5 dark:hover:bg-white/5",
-            currentView === "trash" && "bg-black/[0.08] dark:bg-white/[0.1]",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+            "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+            currentView === "trash" && "bg-black/[0.06] dark:bg-white/[0.08]",
             collapsed && "justify-center px-0"
           )}
           title={collapsed ? t("nav.trash", lang) : undefined}
         >
-          <Trash2 className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-[14px] font-medium">{t("nav.trash", lang)}</span>}
+          <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
+          {!collapsed && <span className="text-[13px] font-medium">{t("nav.trash", lang)}</span>}
         </button>
 
         <button
           onClick={() => setCurrentView("settings")}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-            "hover:bg-black/5 dark:hover:bg-white/5",
-            currentView === "settings" && "bg-black/[0.08] dark:bg-white/[0.1]",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+            "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+            currentView === "settings" && "bg-black/[0.06] dark:bg-white/[0.08]",
             collapsed && "justify-center px-0"
           )}
           title={collapsed ? t("nav.settings", lang) : undefined}
         >
-          <Settings className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-[14px] font-medium">{t("nav.settings", lang)}</span>}
+          <Settings className="w-[18px] h-[18px] flex-shrink-0" />
+          {!collapsed && <span className="text-[13px] font-medium">{t("nav.settings", lang)}</span>}
         </button>
 
         {/* User avatar */}
@@ -232,8 +230,8 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all mt-2",
-                "hover:bg-black/5 dark:hover:bg-white/5",
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all mt-2",
+                "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
                 collapsed && "justify-center px-0"
               )}
             >

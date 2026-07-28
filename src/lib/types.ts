@@ -1,5 +1,5 @@
 /**
- * TCloud — типы данных
+ * kicloud — типы данных
  * ТЗ раздел 5.3: IndexedDB Schema
  */
 

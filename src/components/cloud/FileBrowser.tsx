@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — FileBrowser
+ * kicloud — FileBrowser
  * ТЗ 6.2.2: основной экран. Тулбар (поиск, Grid/List, сортировка, Upload).
  * Grid — карточки 4-6 колонок. List — таблица.
  * Drag-and-drop: overlay с подсветкой.
@@ -137,7 +137,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
-      <div className="glass-panel m-4 mb-2 p-3 flex items-center gap-3 flex-wrap" style={{ borderRadius: 16 }}>
+      <div className="surface-panel m-4 mb-2 p-3 flex items-center gap-3 flex-wrap" style={{ borderRadius: 16 }}>
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" />
@@ -150,7 +150,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
             style={{
               background: "rgba(0, 0, 0, 0.04)",
               border: "1px solid transparent",
-              color: "var(--tc-primary)",
+              color: "var(--kc-primary)",
             }}
           />
         </div>
@@ -163,7 +163,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
               "p-1.5 rounded-lg transition-all",
               viewMode === "grid" ? "bg-white dark:bg-white/10 shadow-sm" : "opacity-50"
             )}
-            style={viewMode === "grid" ? { background: "var(--tc-surface-strong)" } : {}}
+            style={viewMode === "grid" ? { background: "var(--kc-surface)" } : {}}
             title={t("files.gridView", lang)}
           >
             <LayoutGrid className="w-4 h-4" />
@@ -174,7 +174,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
               "p-1.5 rounded-lg transition-all",
               viewMode === "list" ? "bg-white dark:bg-white/10 shadow-sm" : "opacity-50"
             )}
-            style={viewMode === "list" ? { background: "var(--tc-surface-strong)" } : {}}
+            style={viewMode === "list" ? { background: "var(--kc-surface)" } : {}}
             title={t("files.listView", lang)}
           >
             <ListIcon className="w-4 h-4" />
@@ -234,7 +234,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
                   ) : u.status === "done" ? (
                     <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
                   ) : (
-                    <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" style={{ color: "var(--tc-link)" }} />
+                    <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" style={{ color: "var(--kc-link)" }} />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
@@ -272,7 +272,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
                   ) : d.status === "done" ? (
                     <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
                   ) : (
-                    <Download className="w-5 h-5 animate-bounce flex-shrink-0" style={{ color: "var(--tc-link)" }} />
+                    <Download className="w-5 h-5 animate-bounce flex-shrink-0" style={{ color: "var(--kc-link)" }} />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
@@ -320,7 +320,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
               className="absolute inset-0 z-20 rounded-2xl dropzone-active flex items-center justify-center"
             >
               <div className="text-center">
-                <FileUp className="w-16 h-16 mx-auto mb-3" style={{ color: "var(--tc-link)" }} />
+                <FileUp className="w-16 h-16 mx-auto mb-3" style={{ color: "var(--kc-link)" }} />
                 <p className="text-section-title">
                   {t("files.uploadDropActive", lang)}
                 </p>
@@ -368,7 +368,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
           <GlassPanel className="overflow-hidden" style={{ borderRadius: 16 }}>
             <table className="w-full">
               <thead>
-                <tr className="border-b" style={{ borderColor: "var(--tc-border)" }}>
+                <tr className="border-b" style={{ borderColor: "var(--kc-border)" }}>
                   <th className="text-left p-3 text-caption uppercase tracking-wider opacity-50 font-medium">
                     {t("files.column.name", lang)}
                   </th>
@@ -390,7 +390,7 @@ export function FileBrowser({ onRenameFile, onMoveFile, onFileInfo }: FileBrowse
                           "border-b last:border-b-0 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors cursor-pointer",
                           idx === 0 && "border-t-0"
                         )}
-                        style={{ borderColor: "var(--tc-border)" }}
+                        style={{ borderColor: "var(--kc-border)" }}
                       >
                         <td className="p-3">
                           <div className="flex items-center gap-3">

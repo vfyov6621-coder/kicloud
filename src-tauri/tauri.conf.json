@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "TCloud",
+  "productName": "kicloud",
   "version": "2.0.0",
-  "identifier": "com.tcloud.app",
+  "identifier": "com.kicloud.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "beforeBuildCommand": "bun run build",
-    "frontendDist": "../.next/standalone",
+    "frontendDist": "../out",
     "devUrl": "http://localhost:3000"
   },
   "app": {
     "windows": [
       {
-        "title": "TCloud — Telegram Cloud Storage",
+        "title": "kicloud — облачное хранилище файлов",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -31,23 +31,11 @@
     "active": true,
     "targets": ["msi", "deb", "appimage"],
     "icon": [
-      "icons/icon.ico",
       "icons/icon.png"
     ],
     "category": "Productivity",
-    "shortDescription": "Telegram-powered cloud storage",
-    "longDescription": "TCloud — облачное хранилище файлов, использующее Telegram в качестве бессерверного бэкенда. Клиентский MTProto, AES-256-CBC шифрование, Apple Liquid Glass дизайн.",
-    "publisher": "TCloud"
-  },
-  "plugins": {
-    "updater": {
-      "active": true,
-      "endpoints": ["https://releases.tcloud.app/{{target}}/{{arch}}/{{current_version}}"],
-      "pubkey": ""
-    },
-    "systemTray": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true
-    }
+    "shortDescription": "Free encrypted cloud storage",
+    "longDescription": "kicloud — бесплатное облачное хранилище файлов с AES-256 шифрованием. Файлы до 2 ГБ, без серверов, без подписок.",
+    "publisher": "kicloud"
   }
 }

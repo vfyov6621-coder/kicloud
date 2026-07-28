@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — Modals
+ * kicloud — Modals
  * ТЗ 3.4.5 + 6.1: CreateFolderModal, FilePreview, FileInfoModal, RenameModal, MoveModal.
  */
 
@@ -51,7 +51,7 @@ export function CreateFolderModal({ open, onClose }: { open: boolean; onClose: (
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-panel-strong p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
+      <DialogContent className="surface-panel p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-section-title">
             <FolderPlus className="w-5 h-5" />
@@ -91,8 +91,8 @@ export function CreateFolderModal({ open, onClose }: { open: boolean; onClose: (
               className="w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
                 background: "rgba(0, 0, 0, 0.04)",
-                border: "1px solid var(--tc-border)",
-                color: "var(--tc-primary)",
+                border: "1px solid var(--kc-border)",
+                color: "var(--kc-primary)",
               }}
             />
           </div>
@@ -139,7 +139,7 @@ export function RenameFolderModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-panel-strong p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
+      <DialogContent className="surface-panel p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-section-title">
             <Pencil className="w-5 h-5" />
@@ -156,8 +156,8 @@ export function RenameFolderModal({
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: "rgba(0, 0, 0, 0.04)",
-              border: "1px solid var(--tc-border)",
-              color: "var(--tc-primary)",
+              border: "1px solid var(--kc-border)",
+              color: "var(--kc-primary)",
             }}
           />
           <div className="flex gap-2 justify-end">
@@ -203,7 +203,7 @@ export function RenameFileModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-panel-strong p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
+      <DialogContent className="surface-panel p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-section-title">
             <Pencil className="w-5 h-5" />
@@ -220,8 +220,8 @@ export function RenameFileModal({
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: "rgba(0, 0, 0, 0.04)",
-              border: "1px solid var(--tc-border)",
-              color: "var(--tc-primary)",
+              border: "1px solid var(--kc-border)",
+              color: "var(--kc-primary)",
             }}
           />
           <div className="flex gap-2 justify-end">
@@ -267,7 +267,7 @@ export function MoveFileModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-panel-strong p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
+      <DialogContent className="surface-panel p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-section-title">
             <FolderInput className="w-5 h-5" />
@@ -288,7 +288,7 @@ export function MoveFileModal({
               >
                 <span className="text-xl">{folder.icon}</span>
                 <span className="flex-1 text-sm font-medium">{folder.name}</span>
-                {selected === folder.id && <span style={{ color: "var(--tc-link)" }}>✓</span>}
+                {selected === folder.id && <span style={{ color: "var(--kc-link)" }}>✓</span>}
               </button>
             ))}
           </div>
@@ -338,7 +338,7 @@ export function FileInfoModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-panel-strong p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
+      <DialogContent className="surface-panel p-0 overflow-hidden border-0" style={{ borderRadius: 20, maxWidth: 440 }}>
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-section-title">
             <Info className="w-5 h-5" />
@@ -353,13 +353,13 @@ export function FileInfoModal({
               <div className="text-sm opacity-50">{formatFileSize(file.size, lang)}</div>
               <div className="flex items-center gap-2 mt-1">
                 {file.encrypted && (
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,122,255,0.1)", color: "var(--tc-link)" }}>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,122,255,0.1)", color: "var(--kc-link)" }}>
                     <Lock className="w-3 h-3 inline mr-1" />
                     {t("files.encrypted", lang)}
                   </span>
                 )}
                 {file.isFavorite && (
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,149,0,0.1)", color: "var(--tc-warning)" }}>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,149,0,0.1)", color: "var(--kc-warning)" }}>
                     <Star className="w-3 h-3 inline mr-1 fill-current" />
                     {t("files.favorite", lang)}
                   </span>
@@ -369,7 +369,7 @@ export function FileInfoModal({
           </div>
           <div className="space-y-2">
             {rows.map((row) => (
-              <div key={row.label} className="flex items-start justify-between py-2 border-b" style={{ borderColor: "var(--tc-border)" }}>
+              <div key={row.label} className="flex items-start justify-between py-2 border-b" style={{ borderColor: "var(--kc-border)" }}>
                 <span className="text-sm opacity-50">{row.label}</span>
                 <span className="text-sm font-medium text-right ml-3 break-all">{row.value}</span>
               </div>

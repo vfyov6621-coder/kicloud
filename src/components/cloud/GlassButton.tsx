@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * TCloud — GlassButton
- * ТЗ 3.4.2: Primary (заливка, scale 0.97) и Ghost (прозрачный).
- * Touch target 44px minimum (Apple HIG).
+ * kicloud — Button
+ * Primary (заливка) и Ghost (контур). Touch target 40px minimum.
  */
 
 import { forwardRef, type ButtonHTMLAttributes } from "react";
@@ -20,10 +19,10 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
       <button
         ref={ref}
         className={cn(
-          variant === "primary" ? "glass-button-primary" : "glass-button-ghost",
-          size === "sm" && "text-sm px-3 py-2 min-h-[36px]",
-          size === "md" && "text-[15px] px-6 py-3 min-h-[44px]",
-          size === "lg" && "text-base px-8 py-4 min-h-[52px]",
+          variant === "primary" ? "btn-primary" : "btn-ghost",
+          size === "sm" && "text-xs px-3 py-2 min-h-[32px]",
+          size === "md" && "text-sm px-5 py-2.5 min-h-[40px]",
+          size === "lg" && "text-base px-8 py-4 min-h-[48px]",
           className
         )}
         {...props}
@@ -35,3 +34,6 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
 );
 
 GlassButton.displayName = "GlassButton";
+
+// Alias
+export const Button = GlassButton;

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — TrashView
+ * kicloud — TrashView
  * ТЗ 6.1 + 4.5: список удалённых файлов, восстановление, удаление навсегда, авто-очистка 30 дней.
  */
 
@@ -28,7 +28,7 @@ export function TrashView() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="glass-panel m-4 mb-2 p-4 flex items-center justify-between" style={{ borderRadius: 16 }}>
+      <div className="surface-panel m-4 mb-2 p-4 flex items-center justify-between" style={{ borderRadius: 16 }}>
         <div>
           <h2 className="text-section-title flex items-center gap-2">
             <Trash2 className="w-5 h-5" />
@@ -86,7 +86,7 @@ export function TrashView() {
                         <span>·</span>
                         <span>{formatDate(item.deletedAt, lang)}</span>
                         <span>·</span>
-                        <span style={{ color: "var(--tc-warning)" }}>
+                        <span style={{ color: "var(--kc-warning)" }}>
                           {t("trash.expiresIn", lang, { days: daysLeft(item.expiresAt) })}
                         </span>
                       </div>
@@ -97,7 +97,7 @@ export function TrashView() {
                         className="p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         title={t("trash.restore", lang)}
                       >
-                        <RotateCcw className="w-4 h-4" style={{ color: "var(--tc-link)" }} />
+                        <RotateCcw className="w-4 h-4" style={{ color: "var(--kc-link)" }} />
                       </button>
                       <button
                         onClick={() => {

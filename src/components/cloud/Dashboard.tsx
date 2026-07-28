@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — Dashboard
+ * kicloud — Dashboard
  * ТЗ 6.1, 6.2.2: основной лейаут (Sidebar + Content).
  * Навигация через Zustand currentView, не URL-роутинг (ТЗ 6.1).
  */
@@ -47,7 +47,7 @@ export function Dashboard() {
 
   useEffect(() => {
     // Показать toast о demo-режиме
-    toast.info(lang === "ru" ? "Demo-режим активен. Реальный MTProto не подключён." : "Demo mode is active. Real MTProto is not connected.", {
+    toast.info(lang === "ru" ? "Demo-режим активен. Реальное хранилище не подключено." : "Demo mode is active. Real storage is not connected.", {
       duration: 4000,
     });
   }, [lang]);
@@ -100,8 +100,8 @@ export function Dashboard() {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile top bar */}
         <div
-          className="md:hidden flex items-center justify-between p-3 glass-panel"
-          style={{ borderRadius: 0, borderBottom: "1px solid var(--tc-border)", borderTop: "none", borderLeft: "none", borderRight: "none" }}
+          className="md:hidden flex items-center justify-between p-3 surface-panel"
+          style={{ borderRadius: 0, borderBottom: "1px solid var(--kc-border)", borderTop: "none", borderLeft: "none", borderRight: "none" }}
         >
           <button
             onClick={() => setMobileSidebarOpen(true)}
@@ -109,7 +109,7 @@ export function Dashboard() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-bold text-[15px]">TCloud</span>
+          <span className="font-bold text-[15px]">kicloud</span>
           <div className="w-9" />
         </div>
 

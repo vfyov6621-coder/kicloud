@@ -1,17 +1,15 @@
 /**
- * TCloud — Crypto Web Worker
- * ТЗ 4.4, 5.2: AES-256-CBC + gzip в Web Worker, формат .tcld
+ * kicloud — Crypto Web Worker
+ * AES-256-CBC + gzip в Web Worker, формат .kienc
  *
- * Формат .tcld: MAGIC(4) + IV(16) + ORIG_SIZE(4) + ENCRYPTED_DATA
- * Ключ: scrypt(password, salt) — salt = первые 16 байт IV (для упрощения)
- *
- * В реальном продакшене: импортировать 'node:crypto' unavailable в worker,
- * используем Web Crypto API + fflate для gzip.
+ * Формат .kienc: MAGIC(4) + IV(16) + ORIG_SIZE(4) + ENCRYPTED_DATA
+ * Ключ: PBKDF2-SHA256 (100k итераций) — эквивалент scrypt в Web Crypto.
+ * Шифрование локальное, ключ никогда не покидает устройство.
  */
 
 import { gzipSync, gunzipSync } from "fflate";
 
-const MAGIC = new Uint8Array([0x54, 0x43, 0x4c, 0x44]); // "TCLD"
+const MAGIC = new Uint8Array([0x4b, 0x49, 0x45, 0x4e]); // "KIEN" (kicloud encrypted)
 
 interface EncryptRequest {
   type: "encrypt";
@@ -89,7 +87,7 @@ async function encryptData(
     key,
     compressed
   );
-  // 5. Сборка .tcld: MAGIC + IV + ORIG_SIZE + ENCRYPTED
+  // 5. Сборка .kienc: MAGIC + IV + ORIG_SIZE + ENCRYPTED
   onProgress?.(0.9);
   const origSize = data.byteLength;
   const result = new Uint8Array(
@@ -116,7 +114,7 @@ async function decryptData(
   // Проверка магического заголовка
   for (let i = 0; i < MAGIC.length; i++) {
     if (bytes[i] !== MAGIC[i]) {
-      throw new Error("Invalid .tcld format (bad magic header)");
+      throw new Error("Invalid .kienc format (bad magic header)");
     }
   }
   let offset = MAGIC.length;

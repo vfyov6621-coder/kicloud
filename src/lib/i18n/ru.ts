@@ -1,26 +1,25 @@
 /**
- * TCloud — i18n русский словарь
- * ТЗ раздел 7: src/lib/i18n/ru.ts
+ * kicloud — i18n русский словарь
  */
 export const ru = {
   // App
   app: {
-    name: "TCloud",
-    tagline: "Telegram Cloud Storage",
+    name: "kicloud",
+    tagline: "Облачное хранилище файлов",
   },
 
   // Auth
   auth: {
-    title: "TCloud",
-    subtitle: "Облачное хранилище на базе Telegram",
+    title: "kicloud",
+    subtitle: "Бесплатное облачное хранилище файлов",
     welcomeBack: "С возвращением",
     stepPhone: "Вход по номеру телефона",
     stepCode: "Введите код подтверждения",
     stepPassword: "Двухфакторная аутентификация",
     phoneLabel: "Номер телефона",
     phonePlaceholder: "+7 999 123-45-67",
-    codeLabel: "Код из Telegram",
-    codeHint: "Мы отправили код в приложение Telegram",
+    codeLabel: "Код подтверждения",
+    codeHint: "Мы отправили код в ваше приложение",
     passwordLabel: "Облачный пароль",
     passwordHint: "Введите пароль двухфакторной аутентификации",
     sendCode: "Отправить код",
@@ -37,7 +36,7 @@ export const ru = {
     demoModePassword: "Demo-режим: любой пароль",
     signingIn: "Входим…",
     sendingCode: "Отправляем код…",
-    creatingChannel: "Создаём приватный канал…",
+    creatingChannel: "Инициализация хранилища…",
   },
 
   // Navigation
@@ -122,7 +121,7 @@ export const ru = {
       created: "Создан",
       modified: "Изменён",
       encrypted: "Шифрование",
-      messageId: "ID сообщения",
+      messageId: "ID",
       fileId: "ID файла",
     },
   },
@@ -163,9 +162,9 @@ export const ru = {
     encryptionEnabled: "Шифрование файлов",
     encryptionHint: "AES-256-CBC + gzip сжатие в Web Worker",
     encryptionPassword: "Пароль шифрования",
-    encryptionPasswordHint: "Хранится только в памяти, не персистится",
+    encryptionPasswordHint: "Хранится только в памяти, не сохраняется на диске",
     encryptionPasswordPlaceholder: "Минимум 8 символов",
-    encryptionFormat: "Формат .tcld (TCLD + IV + размер + данные)",
+    encryptionFormat: "Файлы шифруются локально перед загрузкой. Ключ никогда не покидает устройство.",
     passwordTooShort: "Пароль должен быть не менее 8 символов",
     passwordSet: "Пароль установлен",
     passwordCleared: "Пароль очищен",
@@ -179,7 +178,7 @@ export const ru = {
     accentColor: "Дополнительный цвет",
     backgroundColor: "Цвет фона",
     presets: "Пресеты",
-    presetMono: "Монохром",
+    presetMono: "Тёмный",
     presetBlue: "Синий",
     presetGreen: "Зелёный",
     presetRed: "Красный",
@@ -194,10 +193,10 @@ export const ru = {
     foldersCount: "Папок: {count}",
     totalSize: "Общий размер: {size}",
     clearCache: "Очистить кэш",
-    clearCacheConfirm: "Очистить кэш метаданных? Файлы в Telegram не будут удалены.",
+    clearCacheConfirm: "Очистить кэш метаданных? Файлы в облаке не будут удалены.",
 
     version: "Версия",
-    buildBy: "Powered by Telegram MTProto",
+    buildBy: "kicloud — бесплатное облачное хранилище",
   },
 
   // Common
@@ -242,7 +241,7 @@ export const ru = {
     sessionExpired: "Сессия истекла, войдите снова",
     connectionRestored: "Соединение восстановлено",
     connectionLost: "Соединение потеряно",
-    demoModeActive: "Demo-режим активен. Реальный MTProto не подключён.",
+    demoModeActive: "Demo-режим активен. Реальное хранилище не подключено.",
   },
 } as const;
 

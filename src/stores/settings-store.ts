@@ -1,5 +1,5 @@
 /**
- * TCloud — Settings store (Zustand + persist)
+ * kicloud — Settings store (Zustand + persist)
  * ТЗ 1.1, 5.3: настройки сохраняются в IndexedDB.
  * Пароль шифрования хранится ТОЛЬКО в памяти (не персистится).
  */
@@ -10,9 +10,9 @@ import { getSettings, saveSettings } from "@/lib/db";
 const DEFAULT_SETTINGS: UserSettings = {
   language: "ru",
   themeMode: "light",
-  themePrimary: "#000000",
-  themeAccent: "#333333",
-  themeBackground: "#f2f2f7",
+  themePrimary: "#0f172a",
+  themeAccent: "#64748b",
+  themeBackground: "#ffffff",
   encryptionEnabled: false,
   encryptionPassword: undefined,
   viewMode: "grid",
@@ -108,15 +108,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     // Пользовательские цвета применяются поверх базовых CSS-переменных
     const style = root.style;
     if (s.themePrimary && s.themePrimary !== DEFAULT_SETTINGS.themePrimary) {
-      style.setProperty("--tc-primary", s.themePrimary);
+      style.setProperty("--kc-primary", s.themePrimary);
       // Выводим accent из primary через luminance
-      style.setProperty("--tc-link", s.themePrimary);
+      style.setProperty("--kc-link", s.themePrimary);
     }
     if (s.themeAccent && s.themeAccent !== DEFAULT_SETTINGS.themeAccent) {
-      style.setProperty("--tc-accent", s.themeAccent);
+      style.setProperty("--kc-accent", s.themeAccent);
     }
     if (s.themeBackground && s.themeBackground !== DEFAULT_SETTINGS.themeBackground) {
-      style.setProperty("--tc-bg", s.themeBackground);
+      style.setProperty("--kc-bg", s.themeBackground);
       style.setProperty("--background", s.themeBackground);
     }
   },

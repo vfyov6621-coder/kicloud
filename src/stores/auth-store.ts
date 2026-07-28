@@ -1,5 +1,5 @@
 /**
- * TCloud — Auth store (Zustand)
+ * kicloud — Auth store (Zustand)
  * ТЗ 2.2.2: сессия сохраняется в IndexedDB, при повторном визите восстанавливается.
  */
 import { create } from "zustand";
@@ -10,7 +10,7 @@ import {
   deleteSession,
   wipeAll,
 } from "@/lib/db";
-import { getTelegramClient } from "@/lib/mtproto";
+import { getCloudClient } from "@/lib/mtproto";
 
 interface AuthStore {
   // State
@@ -52,7 +52,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const stored = await getAnySession();
       if (stored) {
         // ТЗ A-04: проверка валидности через users.getFullUser
-        const client = getTelegramClient();
+        const client = getCloudClient();
         const valid = await client.validateSession(stored);
         if (valid) {
           set({ session: stored, authStep: "done", isInitialized: true });
@@ -70,7 +70,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   sendCode: async (phone) => {
     set({ isLoading: true, error: null, phoneNumber: phone });
     try {
-      const client = getTelegramClient();
+      const client = getCloudClient();
       const result = await client.sendCode(phone);
       set({
         phoneCodeHash: result.phoneCodeHash,
@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   verifyCode: async (code) => {
     set({ isLoading: true, error: null });
     try {
-      const client = getTelegramClient();
+      const client = getCloudClient();
       const result = await client.signIn({
         phone: get().phoneNumber,
         code,
@@ -114,7 +114,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   checkPassword: async (password) => {
     set({ isLoading: true, error: null });
     try {
-      const client = getTelegramClient();
+      const client = getCloudClient();
       const session = await client.checkPassword(password);
       await saveSession(session);
       set({ session, authStep: "done", isLoading: false });
@@ -129,7 +129,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const session = get().session;
     if (session) {
       try {
-        const client = getTelegramClient();
+        const client = getCloudClient();
         await client.logOut(session);
       } catch (e) {
         console.warn("[auth] logout error", e);

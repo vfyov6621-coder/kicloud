@@ -1,0 +1,56 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Build static site
+        env:
+          # Telegram API credentials (из GitHub Secrets)
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          # Demo mode — false для реального подключения
+          KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_KICLOUD_DEMO_MODE: "false"
+          # basePath: /kicloud для репозитория kicloud
+          # Для кастомного домена оставьте пустым
+          NEXT_PUBLIC_BASE_PATH: ${{ vars.BASE_PATH }}
+          NODE_ENV: production
+        run: bun run build
+      - name: Add .nojekyll (отключает Jekyll на GitHub Pages)
+        run: touch ./out/.nojekyll
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

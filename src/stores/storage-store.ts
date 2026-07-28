@@ -1,5 +1,5 @@
 /**
- * TCloud — Storage store (Zustand)
+ * kicloud — Storage store (Zustand)
  * ТЗ 2.3, 4.2, 4.3, 4.5: управление папками, файлами, корзиной.
  */
 import { create } from "zustand";
@@ -22,7 +22,7 @@ import {
   putBlob,
   deleteBlob,
 } from "@/lib/db";
-import { getTelegramClient } from "@/lib/mtproto";
+import { getCloudClient } from "@/lib/mtproto";
 import { uuid, sleep } from "@/lib/utils";
 
 interface StorageStore {
@@ -164,9 +164,9 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
 
   createFolder: async (name, icon) => {
     const folders = get().folders;
-    const client = getTelegramClient();
+    const client = getCloudClient();
     // ТЗ F-01: channels.CreateForumTopic
-    const topicId = await client.createForumTopic(name);
+    const topicId = await client.createFolder(name);
     const folder: Folder = {
       id: uuid(),
       topicId,
@@ -187,8 +187,8 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     const folder = folders.find((f) => f.id === id);
     if (!folder) return;
     // ТЗ F-02: channels.EditForumTopic
-    const client = getTelegramClient();
-    await client.editForumTopic(folder.topicId, name);
+    const client = getCloudClient();
+    await client.editFolder(folder.topicId, name);
     const updated = { ...folder, name, updatedAt: Date.now() };
     await putFolder(updated);
     set({ folders: folders.map((f) => (f.id === id ? updated : f)) });
@@ -198,8 +198,8 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     const folder = get().folders.find((f) => f.id === id);
     if (!folder) return;
     // ТЗ F-03: channels.DeleteTopicHistory
-    const client = getTelegramClient();
-    await client.deleteForumTopic(folder.topicId);
+    const client = getCloudClient();
+    await client.deleteFolder(folder.topicId);
     await dbDeleteFolder(id);
     const remaining = get().folders.filter((f) => f.id !== id);
     set({ folders: remaining });
@@ -229,13 +229,13 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     set({ uploads: [...get().uploads, progress] });
 
     try {
-      const client = getTelegramClient();
+      const client = getCloudClient();
       let bytesToUpload: ArrayBuffer;
       let isEncrypted = false;
       let originalSize = file.size;
 
       if (encryptionEnabled && encryptionPassword) {
-        // ТЗ E-03..E-05: AES-256-CBC + gzip + .tcld формат в Web Worker
+        // ТЗ E-03..E-05: AES-256-CBC + gzip + .kienc формат в Web Worker
         progress.status = "encrypting";
         set({ uploads: get().uploads.map((u) => (u.id === fileId ? progress : u)) });
 
@@ -250,7 +250,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
         bytesToUpload = await file.arrayBuffer();
       }
 
-      // ТЗ FL-01: MTProto sendFile с прогрессом
+      // ТЗ FL-01: upload с прогрессом с прогрессом
       progress.status = "uploading";
       progress.percent = 0;
       set({ uploads: get().uploads.map((u) => (u.id === fileId ? progress : u)) });
@@ -258,7 +258,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
       const start = Date.now();
       const teleFileId = await client.uploadFile(
         bytesToUpload,
-        isEncrypted ? `${file.name}.tcld` : file.name,
+        isEncrypted ? `${file.name}.kienc` : file.name,
         folder.topicId,
         (sent, total) => {
           const percent = encryptionEnabled
@@ -347,10 +347,10 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     set({ downloads: [...get().downloads, progress] });
 
     try {
-      const client = getTelegramClient();
+      const client = getCloudClient();
       let arrayBuffer: ArrayBuffer;
 
-      // ТЗ FL-04: MTProto downloadMedia с прогрессом
+      // ТЗ FL-04: download с прогрессом с прогрессом
       progress.status = "downloading";
       set({ downloads: get().downloads.map((d) => (d.id === progress.id ? progress : d)) });
 
@@ -425,7 +425,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     if (!file) return;
 
     // ТЗ T-01: файл удаляется из Telegram, метаданные — в IndexedDB trash
-    const client = getTelegramClient();
+    const client = getCloudClient();
     try {
       await client.deleteMessages(file.messageId);
     } catch (e) {
@@ -476,7 +476,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     const file = get().files.find((f) => f.id === fileId);
     if (!file) return;
     // ТЗ FL-06: обновление метаданных + editMessageCaption
-    const client = getTelegramClient();
+    const client = getCloudClient();
     try {
       await client.editMessageCaption(file.messageId, newName);
     } catch (e) {
@@ -493,7 +493,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     const targetFolder = get().folders.find((f) => f.id === targetFolderId);
     if (!targetFolder) return;
     // ТЗ FL-07: пересылка сообщения в другой топик + удаление оригинала
-    const client = getTelegramClient();
+    const client = getCloudClient();
     try {
       const newMessageId = await client.forwardMessage(file.messageId, targetFolder.topicId);
       await client.deleteMessages(file.messageId);
@@ -546,7 +546,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     if (!item) return;
     // ТЗ T-02: повторная загрузка файла (если есть локальный кеш)
     try {
-      const client = getTelegramClient();
+      const client = getCloudClient();
       if (client.isDemoMode()) {
         // В demo-режиме blob мог быть удалён — попробуем найти
         const blob = await getBlob(item.fileId);
@@ -560,7 +560,7 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
           await putFile(file);
         }
       } else {
-        // В реальном режиме: повторная загрузка через MTProto
+        // В реальном режиме: повторная загрузка через cloud-клиент
         const file: CloudFile = {
           ...(item.metadata as CloudFile),
           id: item.fileId,

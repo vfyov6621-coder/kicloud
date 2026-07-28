@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TCloud — Main page
+ * kicloud — Main page
  * ТЗ 6.1: если сессии нет — AuthScreen, иначе — Dashboard.
  * ТЗ 6.1: навигация через Zustand currentView, не URL-роутинг.
  */
@@ -37,13 +37,13 @@ export default function Home() {
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{
-              background: "linear-gradient(135deg, var(--tc-link) 0%, var(--tc-primary) 100%)",
+              background: "linear-gradient(135deg, var(--kc-link) 0%, var(--kc-primary) 100%)",
               boxShadow: "0 8px 24px rgba(0, 122, 255, 0.3)",
             }}
           >
             <Loader2 className="w-8 h-8 text-white animate-spin" />
           </div>
-          <p className="text-secondary">TCloud loading…</p>
+          <p className="text-secondary">kicloud loading…</p>
         </motion.div>
       </div>
     );

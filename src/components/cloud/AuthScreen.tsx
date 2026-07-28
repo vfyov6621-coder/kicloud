@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * TCloud — AuthScreen
- * ТЗ 6.2.1: полноэкранный экран авторизации с glass-панелью.
+ * kicloud — AuthScreen
+ * Современный минималистичный экран авторизации.
  * 3 шага: phone → code → password (2FA, если включена).
  */
 
@@ -12,8 +12,6 @@ import { Cloud, Phone, ArrowRight, ArrowLeft, Lock, Loader2 } from "lucide-react
 import { useAuthStore } from "@/stores/auth-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { t } from "@/lib/i18n";
-import { GlassPanel } from "./GlassPanel";
-import { GlassButton } from "./GlassButton";
 import { cn } from "@/lib/utils";
 
 const CODE_LENGTH = 5;
@@ -104,9 +102,11 @@ export function AuthScreen() {
     }
   };
 
+  const isDemo = process.env.NEXT_PUBLIC_KICLOUD_DEMO_MODE === "true";
+
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
-      <div className="liquid-bg" />
+      <div className="auth-bg" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -114,36 +114,38 @@ export function AuthScreen() {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="relative z-10 w-full max-w-[400px]"
       >
-        <GlassPanel className="p-8">
+        <div className="surface-panel p-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 15 }}
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
               style={{
-                background: "linear-gradient(135deg, var(--tc-link) 0%, var(--tc-primary) 100%)",
-                boxShadow: "0 8px 24px rgba(0, 122, 255, 0.3)",
+                background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+                boxShadow: "0 8px 24px rgba(59, 130, 246, 0.3)",
               }}
             >
-              <Cloud className="w-8 h-8 text-white" strokeWidth={2.5} />
+              <Cloud className="w-7 h-7 text-white" strokeWidth={2.5} />
             </motion.div>
-            <h1 className="text-screen-title text-center">{t("auth.title", lang)}</h1>
+            <h1 className="text-screen-title text-center tracking-tight">kicloud</h1>
             <p className="text-secondary text-center mt-1">{t("auth.subtitle", lang)}</p>
           </div>
 
           {/* Demo mode banner */}
-          <div
-            className="mb-6 px-4 py-3 rounded-xl text-caption text-center"
-            style={{
-              background: "rgba(0, 122, 255, 0.08)",
-              border: "1px solid rgba(0, 122, 255, 0.2)",
-              color: "var(--tc-link)",
-            }}
-          >
-            {t("auth.demoMode", lang)}
-          </div>
+          {isDemo && (
+            <div
+              className="mb-6 px-4 py-3 rounded-xl text-caption text-center"
+              style={{
+                background: "rgba(59, 130, 246, 0.08)",
+                border: "1px solid rgba(59, 130, 246, 0.2)",
+                color: "var(--kc-link)",
+              }}
+            >
+              {t("auth.demoMode", lang)}
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {/* Step 1: Phone */}
@@ -169,9 +171,9 @@ export function AuthScreen() {
                     autoFocus
                     className="w-full pl-12 pr-4 py-3.5 rounded-xl text-body outline-none transition-colors"
                     style={{
-                      background: "rgba(0, 0, 0, 0.04)",
-                      border: "1px solid var(--tc-border)",
-                      color: "var(--tc-primary)",
+                      background: "var(--kc-surface-muted)",
+                      border: "1px solid var(--kc-border)",
+                      color: "var(--kc-primary)",
                     }}
                   />
                 </div>
@@ -181,16 +183,16 @@ export function AuthScreen() {
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-sm mb-4 text-center"
-                    style={{ color: "var(--tc-error)" }}
+                    style={{ color: "var(--kc-error)" }}
                   >
                     {error}
                   </motion.p>
                 )}
 
-                <GlassButton
+                <button
                   type="submit"
                   disabled={isLoading || !phone.trim()}
-                  className="w-full"
+                  className="btn-primary w-full"
                 >
                   {isLoading ? (
                     <>
@@ -203,7 +205,7 @@ export function AuthScreen() {
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
-                </GlassButton>
+                </button>
               </motion.form>
             )}
 
@@ -245,9 +247,9 @@ export function AuthScreen() {
                       autoFocus={idx === 0}
                       className="w-12 h-14 text-center text-xl font-semibold rounded-xl outline-none transition-all"
                       style={{
-                        background: "rgba(0, 0, 0, 0.04)",
-                        border: `2px solid ${digit ? "var(--tc-link)" : "var(--tc-border)"}`,
-                        color: "var(--tc-primary)",
+                        background: "var(--kc-surface-muted)",
+                        border: `2px solid ${digit ? "var(--kc-link)" : "var(--kc-border)"}`,
+                        color: "var(--kc-primary)",
                       }}
                     />
                   ))}
@@ -258,16 +260,16 @@ export function AuthScreen() {
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-sm mb-4 text-center"
-                    style={{ color: "var(--tc-error)" }}
+                    style={{ color: "var(--kc-error)" }}
                   >
                     {error}
                   </motion.p>
                 )}
 
-                <GlassButton
+                <button
                   type="submit"
                   disabled={isLoading || code.join("").length < CODE_LENGTH}
-                  className="w-full"
+                  className="btn-primary w-full"
                 >
                   {isLoading ? (
                     <>
@@ -280,7 +282,7 @@ export function AuthScreen() {
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
-                </GlassButton>
+                </button>
 
                 <button
                   type="button"
@@ -329,37 +331,39 @@ export function AuthScreen() {
                     autoFocus
                     className="w-full pl-12 pr-4 py-3.5 rounded-xl text-body outline-none transition-colors"
                     style={{
-                      background: "rgba(0, 0, 0, 0.04)",
-                      border: "1px solid var(--tc-border)",
-                      color: "var(--tc-primary)",
+                      background: "var(--kc-surface-muted)",
+                      border: "1px solid var(--kc-border)",
+                      color: "var(--kc-primary)",
                     }}
                   />
                 </div>
 
-                <div className="mb-4 px-3 py-2 rounded-lg text-caption text-center"
-                  style={{
-                    background: "rgba(0, 122, 255, 0.06)",
-                    color: "var(--tc-link)",
-                  }}
-                >
-                  {t("auth.demoModePassword", lang)}
-                </div>
+                {isDemo && (
+                  <div className="mb-4 px-3 py-2 rounded-lg text-caption text-center"
+                    style={{
+                      background: "rgba(59, 130, 246, 0.06)",
+                      color: "var(--kc-link)",
+                    }}
+                  >
+                    {t("auth.demoModePassword", lang)}
+                  </div>
+                )}
 
                 {error && (
                   <motion.p
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-sm mb-4 text-center"
-                    style={{ color: "var(--tc-error)" }}
+                    style={{ color: "var(--kc-error)" }}
                   >
                     {error}
                   </motion.p>
                 )}
 
-                <GlassButton
+                <button
                   type="submit"
                   disabled={isLoading || !password}
-                  className="w-full"
+                  className="btn-primary w-full"
                 >
                   {isLoading ? (
                     <>
@@ -372,14 +376,14 @@ export function AuthScreen() {
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
-                </GlassButton>
+                </button>
               </motion.form>
             )}
           </AnimatePresence>
-        </GlassPanel>
+        </div>
 
-        <p className="text-center text-caption mt-6 opacity-60">
-          TCloud TZ v2.0 · Telegram MTProto · Apple Liquid Glass
+        <p className="text-center text-caption mt-6 opacity-50">
+          kicloud v2.0 · файлы до 2 ГБ · шифрование AES-256
         </p>
       </motion.div>
     </div>
