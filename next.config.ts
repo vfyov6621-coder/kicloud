@@ -25,9 +25,10 @@ const nextConfig: NextConfig = {
 if (process.env.NODE_ENV === "production") {
   nextConfig.output = "export";
   // Webpack config для gramjs в браузере — gramjs использует Node.js модули,
-  // которых нет в браузере. Заменяем их на пустые заглушки.
+  // которых нет в браузере. Заменяем их на пустые заглушки + polyfills для Buffer/process.
   nextConfig.webpack = (config, { isServer }) => {
     if (!isServer) {
+      const webpack = require("webpack");
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -43,7 +44,18 @@ if (process.env.NODE_ENV === "production") {
         url: false,
         bufferutil: false,
         "utf-8-validate": false,
+        // gramjs требует Buffer и process в браузере
+        buffer: require.resolve("buffer/"),
+        process: require.resolve("process/browser"),
       };
+      // ProvidePlugin: делает Buffer и process доступными глобально
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpack.ProvidePlugin({
+          Buffer: ["buffer", "Buffer"],
+          process: "process/browser",
+        })
+      );
     }
     return config;
   };

@@ -41,6 +41,7 @@
         "@reactuses/core": "^6.0.5",
         "@tanstack/react-query": "^5.82.0",
         "@tanstack/react-table": "^8.21.3",
+        "buffer": "^6.0.3",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
@@ -56,6 +57,7 @@
         "next-intl": "^4.3.4",
         "next-themes": "^0.4.6",
         "prisma": "^6.11.1",
+        "process": "^0.11.10",
         "react": "^19.0.0",
         "react-day-picker": "^9.8.0",
         "react-dom": "^19.0.0",
@@ -1606,6 +1608,8 @@
     "prisma": ["prisma@6.19.2", "https://registry.npmjs.com/prisma/-/prisma-6.19.2.tgz", { "dependencies": { "@prisma/config": "6.19.2", "@prisma/engines": "6.19.2" }, "peerDependencies": { "typescript": ">=5.1.0" }, "optionalPeers": ["typescript"], "bin": { "prisma": "build/index.js" } }, "sha512-XTKeKxtQElcq3U9/jHyxSPgiRgeYDKxWTPOf6NkXA0dNj5j40MfEsZkMbyNpwDWCUv7YBFUl7I2VK/6ALbmhEg=="],
 
     "prismjs": ["prismjs@1.30.0", "https://registry.npmjs.com/prismjs/-/prismjs-1.30.0.tgz", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
+
+    "process": ["process@0.11.10", "", {}, "sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A=="],
 
     "prop-types": ["prop-types@15.8.1", "https://registry.npmjs.com/prop-types/-/prop-types-15.8.1.tgz", { "dependencies": { "loose-envify": "^1.4.0", "object-assign": "^4.1.1", "react-is": "^16.13.1" } }, "sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg=="],
 

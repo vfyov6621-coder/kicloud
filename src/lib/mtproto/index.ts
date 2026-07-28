@@ -9,7 +9,7 @@
  * В demo-режиме используется MockClient для тестирования UI без реального аккаунта.
  *
  * gramjs — клиентская библиотека, работает только в браузере (через WebSocket/WSS).
- * Все `await ((new Function("m", "return import(m)")("telegram")) as Promise<any>)` выполняются только в браузере (typeof window check),
+ * Все `await import("telegram")` выполняются только в браузере (typeof window check),
  * чтобы избежать SSR-сборки node-зависимостей (net, fs, и т.д.).
  */
 
@@ -104,8 +104,8 @@ class GramjsCloudClient implements CloudClient {
     this.ensureBrowser();
     if (this.tg) return this.tg;
     // Динамический import — gramjs загружается только в браузере
-    const { TelegramClient } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
-    const { StringSession } = await ((new Function("m", "return import(m)")("telegram/sessions")) as Promise<any>);
+    const { TelegramClient } = await import("telegram");
+    const { StringSession } = await import("telegram/sessions");
     const stringSession = new StringSession(sessionString ?? "");
     this.tg = new TelegramClient(stringSession, this.apiId, this.apiHash, {
       connectionRetries: 5,
@@ -211,7 +211,7 @@ class GramjsCloudClient implements CloudClient {
     this.ensureBrowser();
     if (this.tg) {
       try {
-        const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+        const { Api } = await import("telegram");
         await this.tg.invoke(new Api.auth.LogOut());
       } catch (e) {
         console.warn("[cloud] logOut failed", e);
@@ -225,7 +225,7 @@ class GramjsCloudClient implements CloudClient {
   async createFolder(name: string): Promise<number> {
     this.ensureBrowser();
     const tg = await this.getTg(this.session?.sessionString);
-    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     const result = await tg.invoke(
       new Api.channels.CreateForumTopic({
@@ -242,7 +242,7 @@ class GramjsCloudClient implements CloudClient {
   async editFolder(topicId: number, name: string): Promise<void> {
     this.ensureBrowser();
     const tg = await this.getTg(this.session?.sessionString);
-    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     await tg.invoke(
       new Api.channels.EditForumTopic({
@@ -256,7 +256,7 @@ class GramjsCloudClient implements CloudClient {
   async deleteFolder(topicId: number): Promise<void> {
     this.ensureBrowser();
     const tg = await this.getTg(this.session?.sessionString);
-    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     await tg.invoke(
       new Api.channels.DeleteTopicHistory({
@@ -277,7 +277,7 @@ class GramjsCloudClient implements CloudClient {
     const channelId = await this.ensureStorageChannel();
 
     // CustomFile — gramjs API для загрузки из ArrayBuffer в браузере
-    const { CustomFile } = await ((new Function("m", "return import(m)")("telegram/client/uploads")) as Promise<any>);
+    const { CustomFile } = await import("telegram/client/uploads");
     const buffer = Buffer.from(data);
     const customFile = new CustomFile(fileName, buffer.length, buffer);
 
@@ -360,7 +360,7 @@ class GramjsCloudClient implements CloudClient {
   private async ensureStorageChannel(): Promise<any> {
     if (this.storageChannelId) return this.storageChannelId;
     const tg = await this.getTg(this.session?.sessionString);
-    const { Api } = await ((new Function("m", "return import(m)")("telegram")) as Promise<any>);
+    const { Api } = await import("telegram");
 
     // Ищем существующий канал по названию
     const dialogs = await tg.getDialogs({ limit: 200 });
