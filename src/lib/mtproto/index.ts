@@ -170,68 +170,90 @@ class GramjsCloudClient implements CloudClient {
   async sendCode(phone: string): Promise<SendCodeResult> {
     this.ensureBrowser();
     const tg = await this.getTg();
+    const { Api } = await import("telegram");
 
     console.log("[cloud] sendCode →", phone);
 
-    // Используем хелпер tg.sendCode — он корректно обрабатывает
-    // PHONE_MIGRATE_X (DC migration) БЕЗ повторных запросов к старому DC,
-    // что avoids FLOOD_WAIT от Telegram.
-    // Добавляем timeout на случай зависания.
-    try {
-      const result = await Promise.race([
-        tg.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, phone),
+    // Прямой invoke Api.auth.SendCode.
+    // НЕ используем хелпер tg.sendCode — он зависает после DC migration
+    // (подключается к новому DC, но не повторяет запрос).
+    // PHONE_MIGRATE_X обрабатываем вручную: ждём реконнект, вызываем ОДИН раз ещё.
+    // Это не вызывает FLOOD_WAIT, т.к. миграция — это не повтор, а перенаправление.
+    const doInvoke = () =>
+      Promise.race([
+        tg.invoke(
+          new Api.auth.SendCode({
+            phoneNumber: phone,
+            apiId: this.apiId,
+            apiHash: this.apiHash,
+            settings: new Api.CodeSettings({}),
+          })
+        ),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error("TIMEOUT_30S")), 30000)
         ),
       ]);
-      console.log("[cloud] sendCode ✓", result);
-      return {
-        phoneCodeHash: (result as any).phoneCodeHash,
-        isCodeViaApp: (result as any).isCodeViaApp ?? false,
-      };
+
+    let result: any;
+    try {
+      result = await doInvoke();
     } catch (e: any) {
       const errMsg = e?.errorMessage || e?.message || String(e);
       const seconds = e?.seconds || 0;
-      console.warn("[cloud] sendCode failed:", errMsg, e);
+      console.warn("[cloud] sendCode first attempt:", errMsg);
 
-      // FLOOD_WAIT_X или FLOOD (с e.seconds)
-      if (errMsg.startsWith("FLOOD") || seconds > 0) {
-        const waitSec = seconds || Number(errMsg.split("_")[2]) || 30;
-        const mins = Math.ceil(waitSec / 60);
-        const hours = Math.floor(mins / 60);
-        const restMins = mins % 60;
-        const timeStr = hours > 0
-          ? `${hours} ч. ${restMins} мин.`
-          : `${mins} мин.`;
-        throw new Error(
-          `Слишком много попыток входа. Подождите ${timeStr} и попробуйте снова.`
-        );
+      // PHONE_MIGRATE_X / USER_MIGRATE_X — нужен переход на другой DC.
+      // gramjs автоматически мигрирует, но invoke нужно повторить ОДИН раз.
+      if (errMsg.startsWith("PHONE_MIGRATE_") || errMsg.startsWith("USER_MIGRATE_")) {
+        console.log("[cloud] DC migration, waiting 3s and retrying once...");
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          result = await doInvoke();
+        } catch (e2: any) {
+          return this.handleSendCodeError(e2);
+        }
+      } else {
+        return this.handleSendCodeError(e);
       }
-      if (errMsg === "PHONE_NUMBER_INVALID") {
-        throw new Error("Неверный формат номера телефона");
-      }
-      if (errMsg === "PHONE_NUMBER_BANNED") {
-        throw new Error("Этот номер заблокирован в Telegram");
-      }
-      if (errMsg === "PHONE_NUMBER_FLOOD") {
-        throw new Error(
-          "Слишком много запросов на этот номер. Попробуйте позже."
-        );
-      }
-      if (errMsg === "AUTH_KEY_PERM_EMPTY") {
-        // Сессия невалидна — переподключаемся с новой сессией
-        console.log("[cloud] reinitializing session (AUTH_KEY_PERM_EMPTY)");
-        this.tg = null;
-        return this.sendCode(phone); // рекурсивный retry один раз
-      }
-      if (errMsg === "TIMEOUT_30S") {
-        throw new Error(
-          "Таймаут подключения к Telegram. Проверьте интернет и попробуйте снова."
-        );
-      }
-      // Любая другая ошибка — показываем как есть, но с префиксом
-      throw new Error(`Ошибка Telegram: ${errMsg}`);
     }
+
+    console.log("[cloud] sendCode ✓", result);
+    return {
+      phoneCodeHash: result.phoneCodeHash,
+      isCodeViaApp: result.isCodeViaApp ?? false,
+    };
+  }
+
+  private handleSendCodeError(e: any): never {
+    const errMsg = e?.errorMessage || e?.message || String(e);
+    const seconds = e?.seconds || 0;
+    console.warn("[cloud] sendCode failed:", errMsg, e);
+
+    if (errMsg.startsWith("FLOOD") || seconds > 0) {
+      const waitSec = seconds || 30;
+      const mins = Math.ceil(waitSec / 60);
+      const hours = Math.floor(mins / 60);
+      const restMins = mins % 60;
+      const timeStr = hours > 0 ? `${hours} ч. ${restMins} мин.` : `${mins} мин.`;
+      throw new Error(
+        `Слишком много попыток входа. Подождите ${timeStr} и попробуйте снова.`
+      );
+    }
+    if (errMsg === "PHONE_NUMBER_INVALID") {
+      throw new Error("Неверный формат номера телефона");
+    }
+    if (errMsg === "PHONE_NUMBER_BANNED") {
+      throw new Error("Этот номер заблокирован в Telegram");
+    }
+    if (errMsg === "PHONE_NUMBER_FLOOD") {
+      throw new Error("Слишком много запросов на этот номер. Попробуйте позже.");
+    }
+    if (errMsg === "TIMEOUT_30S") {
+      throw new Error(
+        "Таймаут подключения к Telegram. Проверьте интернет и попробуйте снова."
+      );
+    }
+    throw new Error(`Ошибка Telegram: ${errMsg}`);
   }
 
   async signIn(params: {

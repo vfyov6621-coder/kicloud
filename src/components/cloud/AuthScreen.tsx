@@ -383,7 +383,7 @@ export function AuthScreen() {
         </div>
 
         <p className="text-center text-caption mt-6 opacity-50">
-          kicloud v2.0 · файлы до 2 ГБ · шифрование AES-256
+          kicloud
         </p>
       </motion.div>
     </div>
