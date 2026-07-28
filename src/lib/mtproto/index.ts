@@ -145,20 +145,29 @@ class GramjsCloudClient implements CloudClient {
 
     console.log("[cloud] sendCode →", phone);
 
-    // Прямой invoke Api.auth.SendCode — надёжнее, чем хелпер tg.sendCode,
-    // который иногда зависает при DC migration.
-    // Повторяем до 3 раз с задержкой — грамjs может мигрировать между DC.
+    // После getTg() connection может быть в процессе DC migration.
+    // Ждём пока соединение стабилизируется.
+    await new Promise((r) => setTimeout(r, 1500));
+
+    // Прямой invoke Api.auth.SendCode с timeout — gramjs иногда зависает
+    // после DC migration. Timeout + retry решает проблему.
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const result = await tg.invoke(
-          new Api.auth.SendCode({
-            phoneNumber: phone,
-            apiId: this.apiId,
-            apiHash: this.apiHash,
-            settings: new Api.CodeSettings({}),
-          })
-        );
+        console.log(`[cloud] sendCode attempt ${attempt}`);
+        const result = await Promise.race([
+          tg.invoke(
+            new Api.auth.SendCode({
+              phoneNumber: phone,
+              apiId: this.apiId,
+              apiHash: this.apiHash,
+              settings: new Api.CodeSettings({}),
+            })
+          ),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("TIMEOUT")), 12000)
+          ),
+        ]);
         console.log("[cloud] sendCode ✓ attempt", attempt, result);
         return {
           phoneCodeHash: (result as any).phoneCodeHash,
@@ -166,33 +175,30 @@ class GramjsCloudClient implements CloudClient {
         };
       } catch (e: any) {
         lastError = e;
-        console.warn(`[cloud] sendCode attempt ${attempt} failed:`, e?.errorMessage || e?.message);
+        const errMsg = e?.errorMessage || e?.message || "";
+        console.warn(`[cloud] sendCode attempt ${attempt} failed:`, errMsg);
+
         // FloodWait — слишком много запросов
-        if (e?.errorMessage?.startsWith("FLOOD_WAIT_")) {
-          const seconds = Number(e.errorMessage.split("_")[2]) || 30;
+        if (errMsg.startsWith("FLOOD_WAIT_")) {
+          const seconds = Number(errMsg.split("_")[2]) || 30;
           throw new Error(
             `Слишком много попыток. Подождите ${seconds}s и попробуйте снова.`
           );
         }
-        // SessionPasswordNeeded — это нормально, вернём флаг
-        if (e?.errorMessage === "SESSION_PASSWORD_NEEDED") {
-          // Не ошибка — продолжаем
-        }
-        // PhoneNumberBanned / PhoneNumberInvalid
-        if (e?.errorMessage === "PHONE_NUMBER_INVALID") {
+        if (errMsg === "PHONE_NUMBER_INVALID") {
           throw new Error("Неверный формат номера телефона");
         }
-        if (e?.errorMessage === "PHONE_NUMBER_BANNED") {
-          throw new Error("Этот номер заблокирован в Telegram");
+        if (errMsg === "PHONE_NUMBER_BANNED") {
+          throw new Error("Этот номер забанен в Telegram");
         }
-        // Если DC migration — пробуем ещё раз
-        if (e?.errorMessage === "PHONE_MIGRATE_2" || e?.errorMessage?.startsWith("PHONE_MIGRATE_") || e?.errorMessage?.startsWith("USER_MIGRATE_")) {
-          console.log("[cloud] DC migration, retrying...");
-          await new Promise((r) => setTimeout(r, 1500));
-          continue;
+        if (errMsg === "AUTH_KEY_PERM_EMPTY") {
+          // Сессия невалидна — переподключаемся
+          console.log("[cloud] reinitializing session");
+          this.tg = null;
+          await this.getTg();
         }
-        // Любая другая ошибка — пробуем ещё раз
-        await new Promise((r) => setTimeout(r, 1000));
+        // TIMEOUT, PHONE_MIGRATE_X, USER_MIGRATE_X — retry после паузы
+        await new Promise((r) => setTimeout(r, 2000));
       }
     }
     throw lastError ?? new Error("sendCode failed after 3 attempts");
