@@ -141,14 +141,61 @@ class GramjsCloudClient implements CloudClient {
   async sendCode(phone: string): Promise<SendCodeResult> {
     this.ensureBrowser();
     const tg = await this.getTg();
-    const result = await tg.sendCode(
-      { apiId: this.apiId, apiHash: this.apiHash },
-      phone
-    );
-    return {
-      phoneCodeHash: result.phoneCodeHash,
-      isCodeViaApp: result.isCodeViaApp,
-    };
+    const { Api } = await import("telegram");
+
+    console.log("[cloud] sendCode →", phone);
+
+    // Прямой invoke Api.auth.SendCode — надёжнее, чем хелпер tg.sendCode,
+    // который иногда зависает при DC migration.
+    // Повторяем до 3 раз с задержкой — грамjs может мигрировать между DC.
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await tg.invoke(
+          new Api.auth.SendCode({
+            phoneNumber: phone,
+            apiId: this.apiId,
+            apiHash: this.apiHash,
+            settings: new Api.CodeSettings({}),
+          })
+        );
+        console.log("[cloud] sendCode ✓ attempt", attempt, result);
+        return {
+          phoneCodeHash: (result as any).phoneCodeHash,
+          isCodeViaApp: (result as any).isCodeViaApp ?? false,
+        };
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`[cloud] sendCode attempt ${attempt} failed:`, e?.errorMessage || e?.message);
+        // FloodWait — слишком много запросов
+        if (e?.errorMessage?.startsWith("FLOOD_WAIT_")) {
+          const seconds = Number(e.errorMessage.split("_")[2]) || 30;
+          throw new Error(
+            `Слишком много попыток. Подождите ${seconds}s и попробуйте снова.`
+          );
+        }
+        // SessionPasswordNeeded — это нормально, вернём флаг
+        if (e?.errorMessage === "SESSION_PASSWORD_NEEDED") {
+          // Не ошибка — продолжаем
+        }
+        // PhoneNumberBanned / PhoneNumberInvalid
+        if (e?.errorMessage === "PHONE_NUMBER_INVALID") {
+          throw new Error("Неверный формат номера телефона");
+        }
+        if (e?.errorMessage === "PHONE_NUMBER_BANNED") {
+          throw new Error("Этот номер заблокирован в Telegram");
+        }
+        // Если DC migration — пробуем ещё раз
+        if (e?.errorMessage === "PHONE_MIGRATE_2" || e?.errorMessage?.startsWith("PHONE_MIGRATE_") || e?.errorMessage?.startsWith("USER_MIGRATE_")) {
+          console.log("[cloud] DC migration, retrying...");
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        // Любая другая ошибка — пробуем ещё раз
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    throw lastError ?? new Error("sendCode failed after 3 attempts");
   }
 
   async signIn(params: {
@@ -158,12 +205,17 @@ class GramjsCloudClient implements CloudClient {
   }): Promise<SignInResult> {
     this.ensureBrowser();
     const tg = await this.getTg();
+    const { Api } = await import("telegram");
+    console.log("[cloud] signIn →", params.phone, "code:", params.code);
     try {
-      await tg.signIn({
-        phoneNumber: params.phone,
-        phoneCode: params.code,
-        phoneCodeHash: params.phoneCodeHash,
-      });
+      const result = await tg.invoke(
+        new Api.auth.SignIn({
+          phoneNumber: params.phone,
+          phoneCode: params.code,
+          phoneCodeHash: params.phoneCodeHash,
+        })
+      );
+      console.log("[cloud] signIn ✓", (result as any)?.className);
       const me = await tg.getMe();
       const sessionString = (tg.session as any).save();
       this.session = {
@@ -178,8 +230,19 @@ class GramjsCloudClient implements CloudClient {
       };
       return { session: this.session, needsPassword: false };
     } catch (e: any) {
-      if (e.errorMessage === "SESSION_PASSWORD_NEEDED") {
+      console.warn("[cloud] signIn failed:", e?.errorMessage || e?.message);
+      if (e?.errorMessage === "SESSION_PASSWORD_NEEDED") {
         return { session: null, needsPassword: true };
+      }
+      if (e?.errorMessage === "PHONE_CODE_INVALID") {
+        throw new Error("Неверный код подтверждения");
+      }
+      if (e?.errorMessage === "PHONE_CODE_EXPIRED") {
+        throw new Error("Код истёк, запросите новый");
+      }
+      if (e?.errorMessage?.startsWith("FLOOD_WAIT_")) {
+        const seconds = Number(e.errorMessage.split("_")[2]) || 30;
+        throw new Error(`Слишком много попыток. Подождите ${seconds}s.`);
       }
       throw e;
     }
@@ -188,10 +251,14 @@ class GramjsCloudClient implements CloudClient {
   async checkPassword(password: string): Promise<UserSession> {
     this.ensureBrowser();
     const tg = await this.getTg();
-    await tg.signInWithPassword(
-      { apiId: this.apiId, apiHash: this.apiHash },
-      { password: () => Promise.resolve(password) }
-    );
+    const { Api } = await import("telegram");
+    console.log("[cloud] checkPassword →");
+    // Получаем SRP-параметры для cloud password
+    const passwordSrpResult = await tg.invoke(new Api.account.GetPassword());
+    // Вычисляем SRP через грамjs хелпер
+  const { computeCheck } = await import("telegram/Password");
+    const passwordSrpCheck = await computeCheck(passwordSrpResult, password);
+    await tg.invoke(new Api.auth.CheckPassword({ password: passwordSrpCheck }));
     const me = await tg.getMe();
     const sessionString = (tg.session as any).save();
     this.session = {
