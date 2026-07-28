@@ -363,15 +363,28 @@ class GramjsCloudClient implements CloudClient {
     const tg = await this.getTg(this.session?.sessionString);
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
+    console.log(`[cloud] createFolder "${name}"`);
     const result = await tg.invoke(
       new Api.channels.CreateForumTopic({
         channel: channelId,
         title: name,
       })
     );
-    const topicId =
-      (result as any)?.updates?.find((u: any) => u.className === "UpdateForumTopic")
-        ?.id ?? Math.floor(Math.random() * 100000);
+    console.log("[cloud] createFolder result:", (result as any)?.className);
+    // Ищем ID топика в updates
+    const updates = (result as any)?.updates ?? [];
+    let topicId: number | null = null;
+    for (const u of updates) {
+      if (u.className === "UpdateForumTopic" && typeof u.id === "number") {
+        topicId = u.id;
+        break;
+      }
+    }
+    // Fallback: иногда ID в MessageReplyInfo или в самом result
+    if (topicId === null) {
+      topicId = (result as any)?.id ?? Math.floor(Date.now() / 1000);
+    }
+    console.log("[cloud] createFolder ✓ topicId:", topicId);
     return topicId;
   }
 
@@ -412,27 +425,28 @@ class GramjsCloudClient implements CloudClient {
     const tg = await this.getTg(this.session?.sessionString);
     const channelId = await this.ensureStorageChannel();
 
-    // CustomFile — gramjs API для загрузки из ArrayBuffer в браузере
-    const { CustomFile } = await import("telegram/client/uploads");
-    const buffer = Buffer.from(data);
-    const customFile = new CustomFile(fileName, buffer.length, buffer);
+    console.log(`[cloud] uploadFile → "${fileName}" (${data.byteLength} bytes) to topic ${topicId}`);
 
-    const sentFile = await tg.uploadFile({
-      file: customFile,
-      workers: 1,
-      onProgress: (progress: number) => {
-        const total = data.byteLength;
-        const sent = Math.floor(total * progress);
+    // ВАЖНО: gramjs поддерживает нативный browser File напрямую (см. client/uploads.d.ts).
+    // НЕ используем CustomFile/Buffer — они требуют Node.js polyfills и ломаются в браузере.
+    // File → gramjs сам вызывает upload.saveFile + sendFile с прогрессом.
+    const file = new File([data], fileName, {
+      type: "application/octet-stream",
+    });
+
+    console.log("[cloud] sendFile (with auto-upload)...");
+    const message = await tg.sendFile(channelId, {
+      file,
+      caption: fileName,
+      forceDocument: true, // не сжимать, отправить как документ
+      replyTo: topicId,    // forum topic
+      progressCallback: (sent: number, total: number) => {
+        console.log(`[cloud] upload progress: ${sent}/${total}`);
         onProgress?.(sent, total);
       },
     });
 
-    const message = await tg.sendFile(channelId, {
-      file: sentFile,
-      caption: fileName,
-      replyTo: topicId,
-    });
-
+    console.log("[cloud] uploadFile ✓ messageId:", message?.id);
     return String(message.id);
   }
 
@@ -445,22 +459,39 @@ class GramjsCloudClient implements CloudClient {
     const channelId = await this.ensureStorageChannel();
     const messageId = Number(fileId);
 
+    console.log(`[cloud] downloadFile ← messageId ${messageId}`);
+
     const messages = await tg.getMessages(channelId, { ids: [messageId] });
     const message = messages[0];
-    if (!message || !message.media) {
-      throw new Error("File not found in storage");
+    if (!message) {
+      throw new Error("Сообщение не найдено");
+    }
+    if (!message.media) {
+      throw new Error("В сообщении нет файла");
     }
 
+    console.log("[cloud] downloadMedia...");
     const buffer = await tg.downloadMedia(message, {
       progressCallback: (received: number, total: number) => {
+        console.log(`[cloud] download progress: ${received}/${total}`);
         onProgress?.(received, total);
       },
     });
+
+    console.log("[cloud] downloadFile ✓ type:", typeof buffer, buffer?.constructor?.name);
 
     if (buffer instanceof ArrayBuffer) return buffer;
     if (Buffer.isBuffer(buffer)) {
       return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
     }
+    if (buffer instanceof Uint8Array) {
+      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    }
+    if (buffer instanceof Blob) {
+      return await buffer.arrayBuffer();
+    }
+    // Fallback: если gramjs вернул что-то странное
+    console.warn("[cloud] unexpected buffer type:", buffer);
     return new ArrayBuffer(0);
   }
 
@@ -498,16 +529,20 @@ class GramjsCloudClient implements CloudClient {
     const tg = await this.getTg(this.session?.sessionString);
     const { Api } = await import("telegram");
 
+    console.log("[cloud] ensureStorageChannel: searching for existing channel...");
+
     // Ищем существующий канал по названию
     const dialogs = await tg.getDialogs({ limit: 200 });
     const existing = dialogs.find(
       (d: any) => d.title === "kicloud Storage" && d.isChannel
     );
     if (existing) {
+      console.log("[cloud] found existing storage channel:", existing.id?.toString());
       this.storageChannelId = existing.entity;
       return this.storageChannelId;
     }
 
+    console.log("[cloud] creating new storage channel with forum=true...");
     // Создаём новый приватный канал с форумом
     const result = await tg.invoke(
       new Api.channels.CreateChannel({
@@ -518,7 +553,11 @@ class GramjsCloudClient implements CloudClient {
       })
     );
     const channel = (result as any)?.chats?.[0];
-    if (!channel) throw new Error("Failed to create storage channel");
+    if (!channel) {
+      console.error("[cloud] CreateChannel result:", result);
+      throw new Error("Не удалось создать канал-хранилище");
+    }
+    console.log("[cloud] storage channel created:", channel.id?.toString());
     this.storageChannelId = channel;
     return this.storageChannelId;
   }
