@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a84ff"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.85"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g transform="translate(96, 156)" filter="url(#shadow)">
+    <path d="M 100 0 C 70 0 45 20 38 50 C 16 56 0 76 0 100 C 0 128 22 150 50 150 L 250 150 C 282 150 308 124 308 92 C 308 62 286 38 256 32 C 250 14 232 0 212 0 C 200 0 188 4 180 12 C 160 4 130 0 100 0 Z" fill="url(#cloud)"/>
+    <circle cx="120" cy="100" r="4" fill="#0a84ff" opacity="0.5"/>
+    <circle cx="160" cy="105" r="3" fill="#0a84ff" opacity="0.4"/>
+    <circle cx="200" cy="100" r="4" fill="#0a84ff" opacity="0.5"/>
+  </g>
+  <text x="256" y="430" font-family="Inter, -apple-system, system-ui, sans-serif" font-size="48" font-weight="700" text-anchor="middle" fill="#ffffff" opacity="0.9">TCloud</text>
+</svg>

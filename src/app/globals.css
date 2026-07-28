@@ -1,0 +1,343 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   TCloud — Apple Liquid Glass Design System
+   CSS-переменные из ТЗ (раздел 3.2), плюс кастомизация RGB
+   ============================================================ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+/* ---- Базовая тема: монохром Apple (светлая) ---- */
+:root {
+  --radius: 16px;
+
+  /* TCloud CSS-переменные из ТЗ 3.2 */
+  --tc-primary: #000000;
+  --tc-accent: #333333;
+  --tc-bg: #f2f2f7;
+  --tc-surface: rgba(255, 255, 255, 0.72);
+  --tc-surface-strong: rgba(255, 255, 255, 0.85);
+  --tc-surface-blur: blur(40px) saturate(180%);
+  --tc-border: rgba(0, 0, 0, 0.08);
+  --tc-light-border: rgba(255, 255, 255, 0.3);
+  --tc-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+  --tc-error: #ff3b30;
+  --tc-link: #007aff;
+  --tc-success: #34c759;
+  --tc-warning: #ff9500;
+
+  /* shadcn-совместимые алиасы */
+  --background: var(--tc-bg);
+  --foreground: var(--tc-primary);
+  --card: var(--tc-surface-strong);
+  --card-foreground: var(--tc-primary);
+  --popover: rgba(255, 255, 255, 0.92);
+  --popover-foreground: var(--tc-primary);
+  --primary: var(--tc-primary);
+  --primary-foreground: #ffffff;
+  --secondary: rgba(0, 0, 0, 0.05);
+  --secondary-foreground: var(--tc-primary);
+  --muted: rgba(0, 0, 0, 0.04);
+  --muted-foreground: var(--tc-accent);
+  --accent: rgba(0, 0, 0, 0.06);
+  --accent-foreground: var(--tc-primary);
+  --destructive: var(--tc-error);
+  --border: var(--tc-border);
+  --input: rgba(0, 0, 0, 0.06);
+  --ring: var(--tc-link);
+  --sidebar: var(--tc-surface);
+  --sidebar-foreground: var(--tc-primary);
+  --sidebar-primary: var(--tc-primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(0, 0, 0, 0.06);
+  --sidebar-accent-foreground: var(--tc-primary);
+  --sidebar-border: var(--tc-border);
+  --sidebar-ring: var(--tc-link);
+}
+
+/* ---- Тёмная тема: монохром Apple (тёмная) ---- */
+.dark {
+  --tc-primary: #ffffff;
+  --tc-accent: #cccccc;
+  --tc-bg: #000000;
+  --tc-surface: rgba(28, 28, 30, 0.72);
+  --tc-surface-strong: rgba(28, 28, 30, 0.88);
+  --tc-surface-blur: blur(40px) saturate(180%);
+  --tc-border: rgba(255, 255, 255, 0.08);
+  --tc-light-border: rgba(255, 255, 255, 0.1);
+  --tc-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  --tc-error: #ff453a;
+  --tc-link: #0a84ff;
+  --tc-success: #30d158;
+  --tc-warning: #ff9f0a;
+
+  --background: var(--tc-bg);
+  --foreground: var(--tc-primary);
+  --card: var(--tc-surface-strong);
+  --card-foreground: var(--tc-primary);
+  --popover: rgba(28, 28, 30, 0.95);
+  --popover-foreground: var(--tc-primary);
+  --primary: var(--tc-primary);
+  --primary-foreground: #000000;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: var(--tc-primary);
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: var(--tc-accent);
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: var(--tc-primary);
+  --destructive: var(--tc-error);
+  --border: var(--tc-border);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: var(--tc-link);
+  --sidebar: var(--tc-surface);
+  --sidebar-foreground: var(--tc-primary);
+  --sidebar-primary: var(--tc-primary);
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: var(--tc-primary);
+  --sidebar-border: var(--tc-border);
+  --sidebar-ring: var(--tc-link);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Apple HIG: safe area insets */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ============================================================
+   Liquid Glass Components
+   ============================================================ */
+
+/* Glass Panel — базовый компонент из ТЗ 3.4.1 */
+.glass-panel {
+  background: var(--tc-surface);
+  backdrop-filter: var(--tc-surface-blur);
+  -webkit-backdrop-filter: var(--tc-surface-blur);
+  border: 1px solid var(--tc-border);
+  border-top: 1px solid var(--tc-light-border);
+  box-shadow: var(--tc-shadow);
+  border-radius: 16px;
+}
+
+.glass-panel-strong {
+  background: var(--tc-surface-strong);
+  backdrop-filter: var(--tc-surface-blur);
+  -webkit-backdrop-filter: var(--tc-surface-blur);
+  border: 1px solid var(--tc-border);
+  border-top: 1px solid var(--tc-light-border);
+  box-shadow: var(--tc-shadow);
+  border-radius: 16px;
+}
+
+/* Glass Button — ТЗ 3.4.2 */
+.glass-button-primary {
+  background: var(--tc-primary);
+  color: var(--tc-bg);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: transform 150ms ease-out, opacity 150ms ease-out;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.glass-button-primary:active {
+  transform: scale(0.97);
+}
+.glass-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.glass-button-ghost {
+  background: transparent;
+  color: var(--tc-primary);
+  border: 1px solid var(--tc-border);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: background 150ms ease-out, transform 150ms ease-out;
+  cursor: pointer;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.glass-button-ghost:hover {
+  background: var(--tc-accent);
+  color: var(--tc-bg);
+}
+.glass-button-ghost:active {
+  transform: scale(0.97);
+}
+
+/* Liquid background — анимированные blob-формы для AuthScreen */
+.liquid-bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  background: var(--tc-bg);
+}
+.liquid-bg::before,
+.liquid-bg::after {
+  content: "";
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  animation: liquid-float 18s ease-in-out infinite;
+}
+.liquid-bg::before {
+  top: -20%;
+  left: -10%;
+  background: radial-gradient(circle, var(--tc-link) 0%, transparent 70%);
+}
+.liquid-bg::after {
+  bottom: -20%;
+  right: -10%;
+  background: radial-gradient(circle, var(--tc-success) 0%, transparent 70%);
+  animation-delay: -9s;
+}
+
+@keyframes liquid-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(5%, 10%) scale(1.1); }
+  66% { transform: translate(-5%, -10%) scale(0.95); }
+}
+
+/* Tactile hover lift — для карточек */
+.tactile-lift {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease-out;
+}
+.tactile-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Скроллбар в стиле Apple */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--tc-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tc-accent);
+}
+
+/* Анимация для прогресс-бара загрузки */
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.progress-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* SF Pro-like typography scale (ТЗ 3.3) */
+.text-screen-title { font-size: 28px; font-weight: 700; line-height: 1.15; }
+.text-section-title { font-size: 20px; font-weight: 600; line-height: 1.25; }
+.text-subtitle { font-size: 17px; font-weight: 600; line-height: 1.3; }
+.text-body { font-size: 15px; font-weight: 400; line-height: 1.5; }
+.text-secondary { font-size: 13px; font-weight: 400; line-height: 1.45; color: var(--tc-accent); }
+.text-button { font-size: 15px; font-weight: 600; line-height: 1.2; }
+.text-caption { font-size: 12px; font-weight: 500; line-height: 1.3; }
+.text-mono { font-family: var(--font-jetbrains-mono), monospace; font-size: 13px; }
+
+/* Selection color */
+::selection {
+  background: var(--tc-link);
+  color: #ffffff;
+}
+
+/* Drag-and-drop overlay */
+.dropzone-active {
+  background: rgba(0, 122, 255, 0.1);
+  border: 2px dashed var(--tc-link);
+}
