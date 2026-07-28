@@ -52,3 +52,24 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Sandbox upload folder — never commit (may contain user secrets)
+/upload/
+/tool-results/
+/download/
+
+# Agent browser / sandbox artifacts
+.agent-browser/
+.zscripts/
+.next/
+dev.log
+server.log
+Caddyfile
+
+# Sandbox-only scaffold artifacts not needed for kicloud deployment
+/skills/
+/examples/
+/mini-services/
+/tests/
+/prisma/
+/db/
