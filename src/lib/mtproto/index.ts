@@ -191,13 +191,20 @@ class GramjsCloudClient implements CloudClient {
       };
     } catch (e: any) {
       const errMsg = e?.errorMessage || e?.message || String(e);
+      const seconds = e?.seconds || 0;
       console.warn("[cloud] sendCode failed:", errMsg, e);
 
-      if (errMsg.startsWith("FLOOD_WAIT_")) {
-        const seconds = Number(errMsg.split("_")[2]) || 30;
-        const mins = Math.ceil(seconds / 60);
+      // FLOOD_WAIT_X или FLOOD (с e.seconds)
+      if (errMsg.startsWith("FLOOD") || seconds > 0) {
+        const waitSec = seconds || Number(errMsg.split("_")[2]) || 30;
+        const mins = Math.ceil(waitSec / 60);
+        const hours = Math.floor(mins / 60);
+        const restMins = mins % 60;
+        const timeStr = hours > 0
+          ? `${hours} ч. ${restMins} мин.`
+          : `${mins} мин.`;
         throw new Error(
-          `Слишком много попыток входа. Подождите ${mins} мин. и попробуйте снова.`
+          `Слишком много попыток входа. Подождите ${timeStr} и попробуйте снова.`
         );
       }
       if (errMsg === "PHONE_NUMBER_INVALID") {
@@ -222,7 +229,8 @@ class GramjsCloudClient implements CloudClient {
           "Таймаут подключения к Telegram. Проверьте интернет и попробуйте снова."
         );
       }
-      throw e;
+      // Любая другая ошибка — показываем как есть, но с префиксом
+      throw new Error(`Ошибка Telegram: ${errMsg}`);
     }
   }
 
@@ -236,13 +244,18 @@ class GramjsCloudClient implements CloudClient {
     const { Api } = await import("telegram");
     console.log("[cloud] signIn →", params.phone, "code:", params.code);
     try {
-      const result = await tg.invoke(
-        new Api.auth.SignIn({
-          phoneNumber: params.phone,
-          phoneCode: params.code,
-          phoneCodeHash: params.phoneCodeHash,
-        })
-      );
+      const result = await Promise.race([
+        tg.invoke(
+          new Api.auth.SignIn({
+            phoneNumber: params.phone,
+            phoneCode: params.code,
+            phoneCodeHash: params.phoneCodeHash,
+          })
+        ),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("TIMEOUT_30S")), 30000)
+        ),
+      ]);
       console.log("[cloud] signIn ✓", (result as any)?.className);
       const me = await tg.getMe();
       const sessionString = (tg.session as any).save();
@@ -258,21 +271,27 @@ class GramjsCloudClient implements CloudClient {
       };
       return { session: this.session, needsPassword: false };
     } catch (e: any) {
-      console.warn("[cloud] signIn failed:", e?.errorMessage || e?.message);
-      if (e?.errorMessage === "SESSION_PASSWORD_NEEDED") {
+      const errMsg = e?.errorMessage || e?.message || String(e);
+      const seconds = e?.seconds || 0;
+      console.warn("[cloud] signIn failed:", errMsg, e);
+      if (errMsg.startsWith("FLOOD") || seconds > 0) {
+        const waitSec = seconds || 30;
+        const mins = Math.ceil(waitSec / 60);
+        throw new Error(`Слишком много попыток. Подождите ${mins} мин.`);
+      }
+      if (errMsg === "SESSION_PASSWORD_NEEDED") {
         return { session: null, needsPassword: true };
       }
-      if (e?.errorMessage === "PHONE_CODE_INVALID") {
+      if (errMsg === "PHONE_CODE_INVALID") {
         throw new Error("Неверный код подтверждения");
       }
-      if (e?.errorMessage === "PHONE_CODE_EXPIRED") {
+      if (errMsg === "PHONE_CODE_EXPIRED") {
         throw new Error("Код истёк, запросите новый");
       }
-      if (e?.errorMessage?.startsWith("FLOOD_WAIT_")) {
-        const seconds = Number(e.errorMessage.split("_")[2]) || 30;
-        throw new Error(`Слишком много попыток. Подождите ${seconds}s.`);
+      if (errMsg === "TIMEOUT_30S") {
+        throw new Error("Таймаут подключения. Проверьте интернет.");
       }
-      throw e;
+      throw new Error(`Ошибка: ${errMsg}`);
     }
   }
 
