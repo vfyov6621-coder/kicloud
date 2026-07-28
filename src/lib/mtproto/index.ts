@@ -102,7 +102,21 @@ class GramjsCloudClient implements CloudClient {
 
   private async getTg(sessionString?: string): Promise<any> {
     this.ensureBrowser();
-    if (this.tg) return this.tg;
+    // Если клиент уже создан — возвращаем существующий.
+    // sessionString передаётся только при validateSession (восстановление сессии).
+    if (this.tg && !sessionString) {
+      return this.tg;
+    }
+    // Если нужно восстановить сессию и клиент уже есть — переподключаем
+    if (this.tg && sessionString) {
+      try {
+        await Promise.race([
+          this.tg.disconnect(),
+          new Promise((_, r) => setTimeout(() => r(new Error("disconnect timeout")), 2000)),
+        ]);
+      } catch {}
+      this.tg = null;
+    }
     // Динамический import — gramjs загружается только в браузере
     const { TelegramClient } = await import("telegram");
     const { StringSession } = await import("telegram/sessions");
@@ -113,7 +127,22 @@ class GramjsCloudClient implements CloudClient {
       useWSS: true, // обязательно для браузера (HTTPS-only)
       retryDelay: 1000,
     });
-    await this.tg.connect();
+    // connect() с timeout — gramjs иногда зависает после DC migration.
+    // Если timeout — всё равно возвращаем client (invoke сам переподключит).
+    console.log("[cloud] connecting...");
+    try {
+      await Promise.race([
+        this.tg.connect(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("CONNECT_TIMEOUT")), 8000)
+        ),
+      ]);
+      console.log("[cloud] connected ✓");
+    } catch (e) {
+      console.warn("[cloud] connect timeout/error, continuing anyway:", e);
+    }
+    // Даём время на стабилизацию после DC migration
+    await new Promise((r) => setTimeout(r, 1500));
     return this.tg;
   }
 
