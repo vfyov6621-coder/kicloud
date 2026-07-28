@@ -428,18 +428,22 @@ class GramjsCloudClient implements CloudClient {
     console.log(`[cloud] uploadFile → "${fileName}" (${data.byteLength} bytes) to topic ${topicId}`);
     console.log("[cloud] channelId type:", channelId?.className || typeof channelId);
 
-    // ВАЖНО: gramjs поддерживает нативный browser File напрямую (см. client/uploads.d.ts).
-    // НЕ используем CustomFile/Buffer — они требуют Node.js polyfills и ломаются в браузере.
-    const file = new File([data], fileName, {
-      type: "application/octet-stream",
-    });
-    console.log("[cloud] File created, size:", file.size, "name:", file.name);
+    // gramjs sendFile принимает CustomFile (НЕ нативный browser File).
+    // Нативный File ломает _fileToMedia — gramjs пытается getInputMedia на нём,
+    // что падает с "Cannot use [object File] as file".
+    // CustomFile с buffer работает: fileToBuffer() возвращает file.buffer напрямую.
+    const { CustomFile } = await import("telegram/client/uploads");
+    // Buffer доступен глобально через ProvidePlugin (polyfill).
+    // Buffer.from(ArrayBuffer) создаёт Node.js-совместимый Buffer.
+    const buffer = Buffer.from(data);
+    const customFile = new CustomFile(fileName, buffer.length, "", buffer);
+    console.log("[cloud] CustomFile created, size:", customFile.size, "name:", customFile.name);
 
     try {
       console.log("[cloud] sendFile (with auto-upload)...");
       // Для forum topics нужно использовать topMsgId (НЕ replyTo).
       const message = await tg.sendFile(channelId, {
-        file,
+        file: customFile,
         caption: fileName,
         forceDocument: true,   // не сжимать, отправить как документ
         topMsgId: topicId,     // forum topic ID
@@ -494,13 +498,22 @@ class GramjsCloudClient implements CloudClient {
       throw new Error("В сообщении нет файла");
     }
 
+    // downloadMedia(client, message, outputFile?, thumb?, progressCallback?)
+    // outputFile — undefined (не пишем на диск, возвращаем Buffer)
+    // progressCallback — позиционный 5й аргумент, принимает bigInt.BigInteger
     console.log("[cloud] downloadMedia...");
-    const buffer = await tg.downloadMedia(message, {
-      progressCallback: (received: number, total: number) => {
-        console.log(`[cloud] download progress: ${received}/${total}`);
-        onProgress?.(received, total);
-      },
-    });
+    const buffer = await tg.downloadMedia(
+      message,
+      undefined, // outputFile — не пишем на диск
+      undefined, // thumb — скачиваем оригинал
+      (received: any, total: any) => {
+        // received/total — bigInt.BigInteger, конвертируем в number
+        const r = typeof received?.toNumber === "function" ? received.toNumber() : Number(received);
+        const t = typeof total?.toNumber === "function" ? total.toNumber() : Number(total);
+        console.log(`[cloud] download progress: ${r}/${t}`);
+        onProgress?.(r, t);
+      }
+    );
 
     console.log("[cloud] downloadFile ✓ type:", typeof buffer, buffer?.constructor?.name);
 
