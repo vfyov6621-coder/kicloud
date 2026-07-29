@@ -129,6 +129,10 @@ class GramjsCloudClient implements CloudClient {
   private tg: any = null;
   private session: UserSession | null = null;
   private storageChannelId: any = null;
+  // Глобальная блокировка — только ОДНА операция с gramjs за раз.
+  // Без этого несколько параллельных вызовов создают несколько TelegramClient
+  // экземпляров, которые конкурируют за WebSocket и всё ломается.
+  private operationLock: Promise<any> = Promise.resolve();
 
   constructor(apiId: number, apiHash: string) {
     this.apiId = apiId;
@@ -146,14 +150,30 @@ class GramjsCloudClient implements CloudClient {
     }
   }
 
+  /**
+   * Сериализация всех операций с gramjs.
+   * Каждая операция ждёт завершения предыдущей.
+   * Без этого несколько параллельных getTg() создают несколько TelegramClient
+   * экземпляров → конкуренция за WebSocket → CONNECT_TIMEOUT.
+   */
+  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const prev = this.operationLock;
+    let resolve!: () => void;
+    this.operationLock = new Promise<void>((r) => { resolve = r; });
+    try {
+      await prev;
+      return await fn();
+    } finally {
+      resolve();
+    }
+  }
+
   private async getTg(sessionString?: string): Promise<any> {
     this.ensureBrowser();
+    // ВНИМАНИЕ: getTg НЕ использует withLock — он вызывается внутри публичных методов,
+    // которые уже держат lock. Если добавить withLock здесь → deadlock.
     // Если клиент уже создан — возвращаем существующий.
-    // sessionString передаётся ТОЛЬКО при validateSession (восстановление сессии после reload).
-    // Все остальные методы (sendCode, signIn, uploadFile, и т.д.) вызывают getTg() без аргументов —
-    // клиент уже авторизован, НЕ нужно переподключаться.
     if (this.tg && !sessionString) {
-      // Проверяем, что клиент подключён. Если нет — переподключаем.
       if (this.tg.connected) {
         return this.tg;
       }
@@ -185,17 +205,14 @@ class GramjsCloudClient implements CloudClient {
     // Динамический import — gramjs загружается только в браузере
     const { TelegramClient } = await import("telegram");
     const { StringSession } = await import("telegram/sessions");
-    // Если sessionString не передан, используем сохранённую сессию (this.session)
     const sessStr = sessionString ?? this.session?.sessionString ?? "";
     const stringSession = new StringSession(sessStr);
     this.tg = new TelegramClient(stringSession, this.apiId, this.apiHash, {
       connectionRetries: 5,
       autoReconnect: true,
-      useWSS: true, // обязательно для браузера (HTTPS-only)
+      useWSS: true,
       retryDelay: 1000,
     });
-    // connect() с timeout — gramjs иногда зависает после DC migration.
-    // Если timeout — всё равно возвращаем client (invoke сам переподключит).
     console.log("[cloud] connecting...");
     try {
       await Promise.race([
@@ -208,13 +225,12 @@ class GramjsCloudClient implements CloudClient {
     } catch (e) {
       console.warn("[cloud] connect timeout/error, continuing anyway:", e);
     }
-    // Даём время на стабилизацию после DC migration
     await new Promise((r) => setTimeout(r, 1500));
     return this.tg;
   }
 
   async validateSession(session: UserSession): Promise<boolean> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     try {
       const tg = await this.getTg(session.sessionString);
       // Timeout 15s — getMe может зависать после DC migration
@@ -244,10 +260,11 @@ class GramjsCloudClient implements CloudClient {
       }
       return false;
     }
+      });
   }
 
   async sendCode(phone: string): Promise<SendCodeResult> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const { Api } = await import("telegram");
 
@@ -301,6 +318,7 @@ class GramjsCloudClient implements CloudClient {
       phoneCodeHash: result.phoneCodeHash,
       isCodeViaApp: result.isCodeViaApp ?? false,
     };
+      });
   }
 
   private handleSendCodeError(e: any): never {
@@ -340,7 +358,7 @@ class GramjsCloudClient implements CloudClient {
     code: string;
     phoneCodeHash: string;
   }): Promise<SignInResult> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const { Api } = await import("telegram");
     console.log("[cloud] signIn →", params.phone, "code:", params.code);
@@ -394,10 +412,11 @@ class GramjsCloudClient implements CloudClient {
       }
       throw new Error(`Ошибка: ${errMsg}`);
     }
+      });
   }
 
   async checkPassword(password: string): Promise<UserSession> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const { Api } = await import("telegram");
     console.log("[cloud] checkPassword →");
@@ -420,10 +439,11 @@ class GramjsCloudClient implements CloudClient {
       createdAt: Date.now(),
     };
     return this.session;
+      });
   }
 
   async logOut(_session: UserSession): Promise<void> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     if (this.tg) {
       try {
         const { Api } = await import("telegram");
@@ -435,10 +455,11 @@ class GramjsCloudClient implements CloudClient {
     this.session = null;
     this.tg = null;
     this.storageChannelId = null;
+      });
   }
 
   async createFolder(name: string): Promise<number> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
@@ -471,10 +492,11 @@ class GramjsCloudClient implements CloudClient {
     }
     console.log("[cloud] createFolder ✓ topicId:", topicId);
     return topicId;
+      });
   }
 
   async editFolder(topicId: number, name: string): Promise<void> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
@@ -485,10 +507,11 @@ class GramjsCloudClient implements CloudClient {
         title: name,
       })
     );
+      });
   }
 
   async deleteFolder(topicId: number): Promise<void> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
@@ -498,6 +521,7 @@ class GramjsCloudClient implements CloudClient {
         topMsgId: topicId,
       })
     );
+      });
   }
 
   async uploadFile(
@@ -506,7 +530,7 @@ class GramjsCloudClient implements CloudClient {
     topicId: number,
     onProgress?: (sent: number, total: number) => void
   ): Promise<string> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
 
@@ -567,13 +591,14 @@ class GramjsCloudClient implements CloudClient {
       }
       throw new Error(`Ошибка загрузки: ${errMsg}`);
     }
+      });
   }
 
   async downloadFile(
     fileId: string,
     onProgress?: (received: number, total: number) => void
   ): Promise<ArrayBuffer> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     const messageId = Number(fileId);
@@ -621,24 +646,27 @@ class GramjsCloudClient implements CloudClient {
     // Fallback: если gramjs вернул что-то странное
     console.warn("[cloud] unexpected buffer type:", buffer);
     return new ArrayBuffer(0);
+      });
   }
 
   async deleteMessages(messageId: number): Promise<void> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     await tg.deleteMessages(channelId, [messageId], { revoke: true });
+      });
   }
 
   async editMessageCaption(messageId: number, newCaption: string): Promise<void> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     await tg.editMessage(channelId, { message: messageId, text: newCaption });
+      });
   }
 
   async forwardMessage(messageId: number, targetTopicId: number): Promise<number> {
-    this.ensureBrowser();
+    return this.withLock(async () => {    this.ensureBrowser();
     const tg = await this.getTg();
     const channelId = await this.ensureStorageChannel();
     const result = await tg.forwardMessages(channelId, [messageId], channelId, {
@@ -649,6 +677,7 @@ class GramjsCloudClient implements CloudClient {
       (result as any)?.updates?.find((u: any) => u.className === "MessageID")?.id ??
       Math.floor(Math.random() * 1000000);
     return newId;
+      });
   }
 
   /* ============================================================
@@ -699,58 +728,56 @@ class GramjsCloudClient implements CloudClient {
     mimeType: string;
     fileName: string;
   }>> {
-    this.ensureBrowser();
-    const tg = await this.getTg();
-    const channelId = await this.ensureStorageChannel();
-    console.log(`[cloud] syncFiles: fetching messages from topic ${topicId}...`);
+    return this.withLock(async () => {
+      this.ensureBrowser();
+      const tg = await this.getTg();
+      const channelId = await this.ensureStorageChannel();
+      console.log(`[cloud] syncFiles: fetching messages from topic ${topicId}...`);
 
-    try {
-      // iterMessages с replyTo=topMsgId возвращает сообщения из forum topic
-      // Берём по 100 за раз
-      const messages: any[] = [];
-      const iterator = tg.iterMessages(channelId, {
-        limit: 100,
-        replyTo: topicId, // forum topic filter
-      });
+      try {
+        const messages: any[] = [];
+        const iterator = tg.iterMessages(channelId, {
+          limit: 100,
+          replyTo: topicId,
+        });
 
-      for await (const msg of iterator) {
-        if (!msg) continue;
-        if (!msg.media) continue; // только сообщения с файлами
-        messages.push(msg);
-      }
-
-      console.log(`[cloud] syncFiles ✓ found ${messages.length} file messages`);
-      return messages.map((msg: any) => {
-        // Извлекаем метаданные документа
-        let fileSize = 0;
-        let mimeType = "application/octet-stream";
-        let fileName = "file";
-
-        const doc = msg?.media?.document;
-        if (doc) {
-          fileSize = Number(doc.size?.toString?.() ?? doc.size ?? 0);
-          mimeType = doc.mimeType ?? "application/octet-stream";
-          // Имя файла: из attributes DocumentAttributeFilename
-          const fnameAttr = doc.attributes?.find((a: any) =>
-            a.className === "DocumentAttributeFilename"
-          );
-          if (fnameAttr?.fileName) {
-            fileName = fnameAttr.fileName;
-          }
+        for await (const msg of iterator) {
+          if (!msg) continue;
+          if (!msg.media) continue;
+          messages.push(msg);
         }
 
-        return {
-          messageId: msg.id,
-          caption: msg.message ?? "", // caption = text сообщения
-          fileSize,
-          mimeType,
-          fileName,
-        };
-      });
-    } catch (e: any) {
-      console.error("[cloud] syncFiles failed:", e?.errorMessage || e?.message);
-      return [];
-    }
+        console.log(`[cloud] syncFiles ✓ found ${messages.length} file messages`);
+        return messages.map((msg: any) => {
+          let fileSize = 0;
+          let mimeType = "application/octet-stream";
+          let fileName = "file";
+
+          const doc = msg?.media?.document;
+          if (doc) {
+            fileSize = Number(doc.size?.toString?.() ?? doc.size ?? 0);
+            mimeType = doc.mimeType ?? "application/octet-stream";
+            const fnameAttr = doc.attributes?.find((a: any) =>
+              a.className === "DocumentAttributeFilename"
+            );
+            if (fnameAttr?.fileName) {
+              fileName = fnameAttr.fileName;
+            }
+          }
+
+          return {
+            messageId: msg.id,
+            caption: msg.message ?? "",
+            fileSize,
+            mimeType,
+            fileName,
+          };
+        });
+      } catch (e: any) {
+        console.error("[cloud] syncFiles failed:", e?.errorMessage || e?.message);
+        return [];
+      }
+    });
   }
 
   /** Получить или создать приватный канал-хранилище */
