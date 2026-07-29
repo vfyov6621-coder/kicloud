@@ -2,11 +2,10 @@
 
 /**
  * kicloud — Main page
- * ТЗ 6.1: если сессии нет — AuthScreen, иначе — Dashboard.
- * ТЗ 6.1: навигация через Zustand currentView, не URL-роутинг.
+ * Если сессии нет — AuthScreen, иначе — Dashboard.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -21,12 +20,19 @@ export default function Home() {
   const settingsLoaded = useSettingsStore((s) => s.loaded);
   const loadSettings = useSettingsStore((s) => s.load);
 
+  // Failsafe: через 8с принудительно показываем UI (даже если init завис)
+  const [forceShow, setForceShow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setForceShow(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     loadSettings();
     init();
   }, [loadSettings, init]);
 
-  if (!isInitialized || !settingsLoaded) {
+  if ((!isInitialized || !settingsLoaded) && !forceShow) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <motion.div
@@ -38,7 +44,7 @@ export default function Home() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{
               background: "linear-gradient(135deg, var(--kc-link) 0%, var(--kc-primary) 100%)",
-              boxShadow: "0 8px 24px rgba(0, 122, 255, 0.3)",
+              boxShadow: "0 8px 24px rgba(59, 130, 246, 0.3)",
             }}
           >
             <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -51,3 +57,4 @@ export default function Home() {
 
   return session ? <Dashboard /> : <AuthScreen />;
 }
+

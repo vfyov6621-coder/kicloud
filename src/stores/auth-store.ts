@@ -51,15 +51,34 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const stored = await getAnySession();
       if (stored) {
-        // ТЗ A-04: проверка валидности через users.getFullUser
+        // Optimistic: сразу показываем Dashboard, не дожидаясь validateSession.
+        // validateSession идёт в фоне с timeout — если сессия невалидна,
+        // пользователь увидит ошибку при первой операции.
+        set({ session: stored, authStep: "done", isInitialized: true });
+
+        // Фоновая проверка сессии (не блокирует UI)
         const client = getCloudClient();
-        const valid = await client.validateSession(stored);
-        if (valid) {
-          set({ session: stored, authStep: "done", isInitialized: true });
-          return;
-        }
-        // Сессия просрочена — очищаем
-        await deleteSession(stored.userId);
+        Promise.race([
+          client.validateSession(stored),
+          new Promise((_, r) => setTimeout(() => r(new Error("validate_timeout")), 10000)),
+        ])
+          .then((valid) => {
+            if (!valid) {
+              // Сессия невалидна — выходим
+              console.warn("[auth] session invalid, signing out");
+              deleteSession(stored.userId).catch(() => {});
+              set({ session: null, authStep: "phone", isInitialized: true });
+            } else {
+              console.log("[auth] session validated ✓");
+            }
+          })
+          .catch((e) => {
+            // Timeout или network error — НЕ выходим, оставляем optimistic сессию.
+            // Если сессия реально валидна, пользователь продолжит работать.
+            // Если нет — увидит ошибку при следующей операции.
+            console.warn("[auth] validateSession timeout/error (continuing optimistically):", e);
+          });
+        return;
       }
     } catch (e) {
       console.warn("[auth] init failed", e);

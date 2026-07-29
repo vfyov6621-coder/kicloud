@@ -171,7 +171,13 @@ class GramjsCloudClient implements CloudClient {
     this.ensureBrowser();
     try {
       const tg = await this.getTg(session.sessionString);
-      const me = await tg.getMe();
+      // Timeout 15s — getMe может зависать после DC migration
+      const me = await Promise.race([
+        tg.getMe(),
+        new Promise((_, r) =>
+          setTimeout(() => r(new Error("TIMEOUT_GET_ME")), 15000)
+        ),
+      ]);
       if (me) {
         this.session = {
           ...session,
@@ -183,7 +189,13 @@ class GramjsCloudClient implements CloudClient {
       }
       return false;
     } catch (e) {
-      console.warn("[cloud] validateSession failed", e);
+      console.warn("[cloud] validateSession failed:", e);
+      // TIMEOUT — считаем сессию валидной (optimistic), чтобы не выкидывать пользователя
+      if (e instanceof Error && e.message === "TIMEOUT_GET_ME") {
+        console.warn("[cloud] getMe timeout — assuming session valid (optimistic)");
+        this.session = session;
+        return true;
+      }
       return false;
     }
   }
@@ -385,12 +397,18 @@ class GramjsCloudClient implements CloudClient {
     const { Api } = await import("telegram");
     const channelId = await this.ensureStorageChannel();
     console.log(`[cloud] createFolder "${name}"`);
-    const result = await tg.invoke(
-      new Api.channels.CreateForumTopic({
-        channel: channelId,
-        title: name,
-      })
-    );
+    // Timeout 20s — invoke может зависать после DC migration
+    const result = await Promise.race([
+      tg.invoke(
+        new Api.channels.CreateForumTopic({
+          channel: channelId,
+          title: name,
+        })
+      ),
+      new Promise((_, r) =>
+        setTimeout(() => r(new Error("TIMEOUT_CREATE_TOPIC")), 20000)
+      ),
+    ]);
     console.log("[cloud] createFolder result:", (result as any)?.className);
     // Ищем ID топика в updates
     const updates = (result as any)?.updates ?? [];
@@ -589,8 +607,19 @@ class GramjsCloudClient implements CloudClient {
 
     console.log("[cloud] ensureStorageChannel: searching for existing channel...");
 
-    // Ищем существующий канал по названию
-    const dialogs = await tg.getDialogs({ limit: 200 });
+    // Ищем существующий канал по названию (с timeout — getDialogs может зависать)
+    let dialogs: any[] = [];
+    try {
+      dialogs = await Promise.race([
+        tg.getDialogs({ limit: 200 }),
+        new Promise<any[]>((_, r) =>
+          setTimeout(() => r(new Error("TIMEOUT_DIALOGS")), 20000)
+        ),
+      ]);
+    } catch (e) {
+      console.warn("[cloud] getDialogs failed, will create new channel:", e);
+    }
+
     const existing = dialogs.find(
       (d: any) => d.title === "kicloud Storage" && d.isChannel
     );
@@ -610,15 +639,21 @@ class GramjsCloudClient implements CloudClient {
     }
 
     console.log("[cloud] creating new storage channel with forum=true...");
-    // Создаём новый приватный канал с форумом
-    const result = await tg.invoke(
-      new Api.channels.CreateChannel({
-        title: "kicloud Storage",
-        about: "kicloud file storage",
-        megagroup: false,
-        forum: true,
-      })
-    );
+    // Создаём новый приватный канал с форумом (с timeout)
+    const result = await Promise.race([
+      tg.invoke(
+        new Api.channels.CreateChannel({
+          title: "kicloud Storage",
+          about: "kicloud file storage",
+          megagroup: false,
+          forum: true,
+        })
+      ),
+      new Promise((_, r) =>
+        setTimeout(() => r(new Error("TIMEOUT_CREATE_CHANNEL")), 20000)
+      ),
+    ]);
+
     const channel = (result as any)?.chats?.[0];
     if (!channel) {
       console.error("[cloud] CreateChannel result:", result);

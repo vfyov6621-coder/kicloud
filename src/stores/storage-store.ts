@@ -24,6 +24,7 @@ import {
 } from "@/lib/db";
 import { getCloudClient } from "@/lib/mtproto";
 import { uuid, sleep } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface StorageStore {
   // Folders
@@ -96,27 +97,53 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     set({ isLoadingFolders: true });
     try {
       const folders = await getAllFolders();
-      set({ folders, isLoadingFolders: false });
 
-      // ТЗ A-06: при первом входе создаётся приватный канал с форумом
-      // и дефолтный топик "General" (topicId=1)
       if (folders.length === 0) {
-        const generalFolder: Folder = {
-          id: uuid(),
-          topicId: 1,
-          name: "General",
-          icon: "📁",
-          sortOrder: 0,
-          fileCount: 0,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        await putFolder(generalFolder);
-        set({ folders: [generalFolder], currentFolderId: generalFolder.id });
-        await get().loadFiles(generalFolder.id);
-      } else if (!get().currentFolderId) {
-        // Если есть папки, но текущая не выбрана — выбрать первую
-        await get().setCurrentFolder(folders[0].id);
+        // Первый вход — нужно создать приватный канал + General topic в Telegram.
+        // Timeout 30s — если Telegram не отвечает, показываем ошибку, не зависаем.
+        console.log("[storage] first login: creating storage channel + General topic");
+        try {
+          const client = getCloudClient();
+          // ensureStorageChannel() вызывается внутри createFolder.
+          // Создаём General topic — это создаст и канал если его нет.
+          const generalTopicId = await Promise.race([
+            client.createFolder("General"),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("TIMEOUT_CREATE_FOLDER")), 30000)
+            ),
+          ]);
+          console.log("[storage] General topic created in Telegram, topicId:", generalTopicId);
+          const generalFolder: Folder = {
+            id: uuid(),
+            topicId: generalTopicId,
+            name: "General",
+            icon: "📁",
+            sortOrder: 0,
+            fileCount: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await putFolder(generalFolder);
+          set({ folders: [generalFolder], currentFolderId: generalFolder.id, isLoadingFolders: false });
+          await get().loadFiles(generalFolder.id);
+        } catch (e: any) {
+          console.error("[storage] createFolder failed:", e);
+          set({ isLoadingFolders: false });
+          // Показываем ошибку пользователю
+          const errMsg = e?.message || String(e);
+          if (errMsg === "TIMEOUT_CREATE_FOLDER") {
+            toast.error("Таймаут подключения к Telegram. Проверьте интернет и обновите страницу.");
+          } else {
+            toast.error("Не удалось создать хранилище: " + errMsg);
+          }
+        }
+      } else {
+        // Папки уже есть — просто загружаем
+        console.log("[storage] found", folders.length, "folders");
+        set({ folders, isLoadingFolders: false });
+        if (!get().currentFolderId) {
+          await get().setCurrentFolder(folders[0].id);
+        }
       }
     } catch (e) {
       console.error("[storage] loadFolders error", e);

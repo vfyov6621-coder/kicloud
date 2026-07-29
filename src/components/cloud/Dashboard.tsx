@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useStorageStore } from "@/stores/storage-store";
@@ -29,6 +29,8 @@ export function Dashboard() {
   const session = useAuthStore((s) => s.session);
   const loadFolders = useStorageStore((s) => s.loadFolders);
   const currentView = useStorageStore((s) => s.currentView);
+  const isLoadingFolders = useStorageStore((s) => s.isLoadingFolders);
+  const folders = useStorageStore((s) => s.folders);
   const lang = useSettingsStore((s) => s.language);
 
   // Modals state
@@ -54,6 +56,29 @@ export function Dashboard() {
 
   return (
     <div className="h-screen flex overflow-hidden">
+      {/* Loading overlay — первичная инициализация хранилища */}
+      {isLoadingFolders && folders.length === 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, var(--kc-link) 0%, var(--kc-primary) 100%)",
+                boxShadow: "0 8px 24px rgba(59, 130, 246, 0.3)",
+              }}
+            >
+              <Loader2 className="w-8 h-8 text-white animate-spin" />
+            </div>
+            <p className="text-secondary">Инициализация хранилища…</p>
+            <p className="text-caption opacity-50">Создаём приватный канал в Telegram</p>
+          </motion.div>
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
       <div className="hidden md:flex">
         <Sidebar
