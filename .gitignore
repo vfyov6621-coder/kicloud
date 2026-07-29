@@ -17,8 +17,8 @@ node_modules
 /.next/
 /out/
 
-# production
-/build
+# production (electron-builder output is in dist-electron/, not /build)
+/dist-electron/
 
 # misc
 .DS_Store
@@ -75,3 +75,15 @@ Caddyfile
 /db/
 # Local deploy scripts (contain tokens — never commit)
 /scripts/
+
+# Capacitor / Android build output (generated on CI, not committed)
+/android/
+/.gradle/
+/android/.gradle/
+/android/app/build/
+/android/build/
+/android/local.properties
+/android/captures/
+
+# Keep build/ (icons) and electron/ (main process) — they're source code
+!build/

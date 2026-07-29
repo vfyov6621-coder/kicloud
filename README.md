@@ -244,21 +244,90 @@ src/
 ├── workers/
 │   └── crypto.worker.ts  # AES-256-CBC + gzip
 public/manifest.json, sw.js, icon.svg
-src-tauri/tauri.conf.json  # опционально для Desktop
-.github/workflows/deploy.yml  # CI/CD для GitHub Pages
+electron/main.cjs              # Electron main process
+build/icon.*                   # Иконки для desktop
+electron-builder.yml           # конфиг electron-builder
+capacitor.config.ts            # конфиг Capacitor для Android
+.github/workflows/
+├── deploy.yml                 # деплой web-версии на GitHub Pages
+└── build-apps.yml             # сборка desktop + android приложений
 ```
 
-## Desktop (опционально)
+## Desktop + Android приложения
 
-Для сборки desktop-приложения через Tauri 2.x:
+kicloud собирается в нативные приложения через **GitHub Actions**. При пуше в `main` или создании тега `v*` запускается [workflow](.github/workflows/build-apps.yml), который собирает:
+
+- **Windows**: `.exe` (NSIS installer + portable)
+- **Linux**: `.AppImage`, `.deb`, `.tar.gz`
+- **Android**: `.apk`
+
+### Скачать готовые сборки
+
+1. Откройте https://github.com/vfyov6621-coder/kicloud/actions
+2. Выберите workflow "Build Desktop + Android Apps"
+3. Нажмите на последний успешный run
+4. Скачайте artifacts:
+   - `kicloud-windows` → `.exe` файлы
+   - `kicloud-linux` → `.AppImage` / `.deb`
+   - `kicloud-android` → `.apk`
+
+### Создать Release с приложениями
 
 ```bash
-bun add -D @tauri-apps/cli
-bunx tauri init
-bunx tauri build  # .msi для Windows, .deb/.AppImage для Linux
+# Тег запускает release job, который создаёт GitHub Release
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
-Размер инсталлера: ~10 МБ.
+Release появится на https://github.com/vfyov6621-coder/kicloud/releases со всеми файлами.
+
+### Технологии
+
+- **Windows/Linux**: [Electron](https://www.electronjs.org/) + [electron-builder](https://www.electron.build/)
+  - `electron/main.cjs` — main process
+  - `electron-builder.yml` — конфиг сборки
+  - Static export из Next.js загружается через кастомный протокол `app://`
+- **Android**: [Capacitor](https://capacitorjs.com/) 8.x
+  - `capacitor.config.ts` — конфиг
+  - Android проект создаётся на CI через `npx cap add android`
+  - WebView загружает static export с `androidScheme: https`
+
+### Локальная сборка (для разработки)
+
+```bash
+# Установить зависимости
+bun install
+
+# Desktop — запустить в dev режиме (нужен собранный ./out/)
+bun run build:web
+bun run electron:dev
+
+# Desktop — собрать инсталлеры
+bun run electron:build:win    # Windows (.exe)
+bun run electron:build:linux  # Linux (.AppImage, .deb)
+
+# Android — собрать APK (нужен Android SDK + Java 17)
+bun run android:build:debug   # debug APK
+bun run android:build:release # release APK (нужен signing key)
+```
+
+### Структура
+
+```
+electron/
+├── main.cjs              # Electron main process
+build/
+├── icon.svg              # исходная иконка
+├── icon.png              # 512x512 PNG (Linux)
+├── icon-256.png          # 256x256 PNG
+├── icon-128.png          # 128x128 PNG
+├── icon.ico              # Windows ICO (multi-size)
+electron-builder.yml      # конфиг electron-builder
+capacitor.config.ts       # конфиг Capacitor для Android
+.github/workflows/
+├── deploy.yml            # деплой web-версии на GitHub Pages
+└── build-apps.yml        # сборка desktop + android приложений
+```
 
 ## Лицензия
 

@@ -1,0 +1,62 @@
+# kicloud — electron-builder config
+# https://www.electron.build/configuration
+
+appId: com.kicloud.app
+productName: kicloud
+copyright: Copyright © 2026 kicloud
+
+directories:
+  output: dist-electron
+  buildResources: build
+
+# Файлы, которые попадают в пакет (static export + electron main)
+files:
+  - electron/main.cjs
+  - out/**/*
+  - package.json
+  - node_modules/**/*
+  - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,*.d.ts,*.map,*.ts}"
+  - "!node_modules/**/{test,tests,__tests__,docs,doc,examples,example}/**"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!{.eslintignore,.eslintrc,.prettierignore,.prettierrc,.gitignore,.DS_Store}"
+
+# Иконки
+icon: build/icon
+
+# Linux
+linux:
+  target:
+    - AppImage
+    - deb
+    - tar.gz
+  category: Network
+  maintainer: kicloud
+  vendor: kicloud
+  synopsis: "kicloud — облачное хранилище файлов"
+  description: "Бесплатное облачное хранилище файлов с AES-256 шифрованием. Файлы до 2 ГБ, без серверов."
+  icon: build/icon.png
+
+# Windows
+win:
+  target:
+    - nsis
+    - portable
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: kicloud
+
+# macOS (на будущее, если понадобится)
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+  icon: build/icon.png
+
+# Compression
+compression: maximum

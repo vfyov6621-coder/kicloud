@@ -1,0 +1,167 @@
+name: Build Desktop + Android Apps
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ============================================================
+  # Windows (Electron → NSIS installer + portable .exe)
+  # ============================================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Build Next.js static export
+        env:
+          NEXT_PUBLIC_TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          NEXT_PUBLIC_TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_BASE_PATH: ""
+          NODE_ENV: production
+        run: bun run build:web
+      - name: Add .nojekyll
+        run: touch ./out/.nojekyll
+      - name: Build Electron app (Windows)
+        run: bun run electron:build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicloud-windows
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.nsis.7z
+
+  # ============================================================
+  # Linux (Electron → AppImage + .deb)
+  # ============================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Build Next.js static export
+        env:
+          NEXT_PUBLIC_TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          NEXT_PUBLIC_TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_BASE_PATH: ""
+          NODE_ENV: production
+        run: bun run build:web
+      - name: Add .nojekyll
+        run: touch ./out/.nojekyll
+      - name: Build Electron app (Linux)
+        run: bun run electron:build:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicloud-linux
+          path: |
+            dist-electron/*.AppImage
+            dist-electron/*.deb
+            dist-electron/*.tar.gz
+
+  # ============================================================
+  # Android (Capacitor → APK)
+  # ============================================================
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+      - name: Install dependencies
+        run: bun install
+      - name: Build Next.js static export
+        env:
+          NEXT_PUBLIC_TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          NEXT_PUBLIC_TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_KICLOUD_DEMO_MODE: "false"
+          NEXT_PUBLIC_BASE_PATH: ""
+          NODE_ENV: production
+        run: bun run build:web
+      - name: Add .nojekyll
+        run: touch ./out/.nojekyll
+      - name: Add Capacitor Android project
+        run: npx cap add android
+        continue-on-error: true
+      - name: Copy web assets to Android
+        run: npx cap copy android
+      - name: Update Android permissions
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          # Добавляем INTERNET permission если нет
+          grep -q "android.permission.INTERNET" $MANIFEST || \
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          # Allow cleartext для совместимости (если gramjs нужен http fallback)
+          grep -q "android:usesCleartextTraffic" $MANIFEST || \
+            sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+      - name: Build APK (debug)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicloud-android
+          path: android/app/build/outputs/apk/debug/*.apk
+
+  # ============================================================
+  # Release: создать GitHub Release с артефактами (на теги v*)
+  # ============================================================
+  release:
+    needs: [build-windows, build-linux, build-android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Display structure
+        run: ls -R artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/kicloud-windows/*
+            artifacts/kicloud-linux/*
+            artifacts/kicloud-android/*
