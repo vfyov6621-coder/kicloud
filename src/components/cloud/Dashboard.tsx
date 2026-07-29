@@ -43,9 +43,21 @@ export function Dashboard() {
   // Mobile sidebar drawer
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  const syncFromCloud = useStorageStore((s) => s.syncFromCloud);
+
   useEffect(() => {
     loadFolders();
   }, [loadFolders]);
+
+  // Авто-синхронизация каждые 60 секунд (для multi-device)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncFromCloud().catch((e) =>
+        console.warn("[dashboard] auto-sync failed:", e)
+      );
+    }, 60000); // 60s
+    return () => clearInterval(interval);
+  }, [syncFromCloud]);
 
   useEffect(() => {
     // Показать toast о demo-режиме

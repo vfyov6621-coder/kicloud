@@ -17,6 +17,7 @@ import {
   Pencil,
   Trash,
   HardDrive,
+  RefreshCw,
 } from "lucide-react";
 import { useStorageStore } from "@/stores/storage-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -52,8 +53,17 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
     setCurrentFolder,
     setCurrentView,
     deleteFolder,
+    syncFromCloud,
+    isSyncing,
+    lastSyncAt,
   } = useStorageStore();
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleSync = () => {
+    syncFromCloud().then(() => {
+      // toast уже показывается в syncFromCloud через console.log
+    });
+  };
 
   const userName = session ? `${session.firstName ?? ""} ${session.lastName ?? ""}`.trim() || "User" : "User";
 
@@ -195,8 +205,33 @@ export function Sidebar({ onCreateFolder, onRenameFolder }: SidebarProps) {
         </button>
       </div>
 
-      {/* Footer: account + trash + settings */}
+      {/* Footer: sync + trash + settings */}
       <div className="border-t p-2 space-y-0.5" style={{ borderColor: "var(--kc-border)" }}>
+        {/* Sync button — синхронизация с другими устройствами */}
+        <button
+          onClick={handleSync}
+          disabled={isSyncing}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+            "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+            isSyncing && "opacity-50 cursor-not-allowed",
+            collapsed && "justify-center px-0"
+          )}
+          title={collapsed ? "Синхронизировать" : undefined}
+        >
+          <RefreshCw className={cn("w-[18px] h-[18px] flex-shrink-0", isSyncing && "animate-spin")} />
+          {!collapsed && (
+            <span className="text-[13px] font-medium">
+              {isSyncing ? "Синхронизация…" : "Синхронизировать"}
+            </span>
+          )}
+          {!collapsed && lastSyncAt && !isSyncing && (
+            <span className="ml-auto text-[10px] opacity-40">
+              {new Date(lastSyncAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+        </button>
+
         <button
           onClick={() => setCurrentView("trash")}
           className={cn(

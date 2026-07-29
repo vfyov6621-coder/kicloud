@@ -48,6 +48,52 @@ export interface CloudClient {
   editMessageCaption(messageId: number, newCaption: string): Promise<void>;
   forwardMessage(messageId: number, targetTopicId: number): Promise<number>;
   isDemoMode(): boolean;
+
+  // Синхронизация между устройствами через сам Telegram
+  /** Получить все forum topics (папки) из канала-хранилища */
+  syncFolders(): Promise<Array<{ topicId: number; title: string }>>;
+  /** Получить все сообщения-файлы из topic (для восстановления метаданных) */
+  syncFiles(topicId: number): Promise<Array<{
+    messageId: number;
+    caption: string;
+    fileSize: number;
+    mimeType: string;
+    fileName: string;
+  }>>;
+}
+
+/**
+ * Формат caption для синхронизации метаданных между устройствами.
+ * Файлы отправляются с caption = kicloud-meta:{json}
+ * Это позволяет другим устройствам восстановить имя/размер/MIME файла.
+ */
+export const META_PREFIX = "kicloud-meta:";
+
+export function encodeMeta(meta: {
+  name: string;
+  mimeType: string;
+  size: number;
+  encrypted: boolean;
+  isFavorite: boolean;
+  originalName: string;
+}): string {
+  return META_PREFIX + JSON.stringify(meta);
+}
+
+export function decodeMeta(caption: string | null | undefined): {
+  name: string;
+  mimeType: string;
+  size: number;
+  encrypted: boolean;
+  isFavorite: boolean;
+  originalName: string;
+} | null {
+  if (!caption || !caption.startsWith(META_PREFIX)) return null;
+  try {
+    return JSON.parse(caption.slice(META_PREFIX.length));
+  } catch {
+    return null;
+  }
 }
 
 let client: CloudClient | null = null;
@@ -468,24 +514,31 @@ class GramjsCloudClient implements CloudClient {
     console.log("[cloud] channelId type:", channelId?.className || typeof channelId);
 
     // gramjs sendFile принимает CustomFile (НЕ нативный browser File).
-    // Нативный File ломает _fileToMedia — gramjs пытается getInputMedia на нём,
-    // что падает с "Cannot use [object File] as file".
-    // CustomFile с buffer работает: fileToBuffer() возвращает file.buffer напрямую.
     const { CustomFile } = await import("telegram/client/uploads");
-    // Buffer доступен глобально через ProvidePlugin (polyfill).
-    // Buffer.from(ArrayBuffer) создаёт Node.js-совместимый Buffer.
     const buffer = Buffer.from(data);
     const customFile = new CustomFile(fileName, buffer.length, "", buffer);
     console.log("[cloud] CustomFile created, size:", customFile.size, "name:", customFile.name);
 
+    // Caption = метаданные для синхронизации между устройствами.
+    // Формат: kicloud-meta:{json} — позволяет другим устройствам восстановить
+    // имя/размер/MIME/encrypted флаг файла.
+    const meta = encodeMeta({
+      name: fileName,
+      originalName: fileName,
+      mimeType: "application/octet-stream",
+      size: data.byteLength,
+      encrypted: fileName.endsWith(".kienc"),
+      isFavorite: false,
+    });
+    console.log("[cloud] meta caption:", meta);
+
     try {
       console.log("[cloud] sendFile (with auto-upload)...");
-      // Для forum topics нужно использовать topMsgId (НЕ replyTo).
       const message = await tg.sendFile(channelId, {
         file: customFile,
-        caption: fileName,
-        forceDocument: true,   // не сжимать, отправить как документ
-        topMsgId: topicId,     // forum topic ID
+        caption: meta,           // метаданные для синхронизации
+        forceDocument: true,     // не сжимать, отправить как документ
+        topMsgId: topicId,       // forum topic ID
         progressCallback: (sent: number, total: number) => {
           console.log(`[cloud] upload progress: ${sent}/${total}`);
           onProgress?.(sent, total);
@@ -496,15 +549,14 @@ class GramjsCloudClient implements CloudClient {
     } catch (e: any) {
       console.error("[cloud] uploadFile FAILED:", e?.errorMessage || e?.message, e);
       const errMsg = e?.errorMessage || e?.message || String(e);
-      // Человеко-читаемые ошибки
       if (errMsg === "CHAT_ADMIN_REQUIRED" || errMsg === "CHAT_WRITE_FORBIDDEN") {
-        throw new Error("Нет прав на запись в канал-хранилище. Обратитесь к поддержке.");
+        throw new Error("Нет прав на запись в канал-хранилище.");
       }
       if (errMsg === "TOPIC_CLOSED") {
-        throw new Error("Папка закрыта. Создайте новую.");
+        throw new Error("Папка закрыта.");
       }
       if (errMsg === "TOPIC_DELETED") {
-        throw new Error("Папка удалена. Обновите список.");
+        throw new Error("Папка удалена.");
       }
       if (errMsg.startsWith("FLOOD") || e?.seconds > 0) {
         const sec = e?.seconds || 30;
@@ -597,6 +649,108 @@ class GramjsCloudClient implements CloudClient {
       (result as any)?.updates?.find((u: any) => u.className === "MessageID")?.id ??
       Math.floor(Math.random() * 1000000);
     return newId;
+  }
+
+  /* ============================================================
+     Синхронизация между устройствами
+     ============================================================ */
+
+  /** Получить все forum topics (папки) из канала-хранилища */
+  async syncFolders(): Promise<Array<{ topicId: number; title: string }>> {
+    this.ensureBrowser();
+    const tg = await this.getTg();
+    const { Api } = await import("telegram");
+    const channelId = await this.ensureStorageChannel();
+    console.log("[cloud] syncFolders: fetching forum topics...");
+
+    try {
+      // channels.GetForumTopics — возвращает все topics в forum-канале
+      // По 100 за раз (max limit)
+      const result = await Promise.race([
+        tg.invoke(
+          new Api.channels.GetForumTopics({
+            channel: channelId,
+            limit: 100,
+          })
+        ),
+        new Promise((_, r) =>
+          setTimeout(() => r(new Error("TIMEOUT_SYNC_FOLDERS")), 20000)
+        ),
+      ]);
+
+      const topics = (result as any)?.topics ?? [];
+      console.log(`[cloud] syncFolders ✓ found ${topics.length} topics`);
+      return topics.map((t: any) => ({
+        topicId: t.id,
+        title: t.title ?? "Untitled",
+      }));
+    } catch (e: any) {
+      console.error("[cloud] syncFolders failed:", e?.errorMessage || e?.message);
+      // Fallback: если GetForumTopics не работает, вернём General (id=1)
+      return [{ topicId: 1, title: "General" }];
+    }
+  }
+
+  /** Получить все сообщения-файлы из topic */
+  async syncFiles(topicId: number): Promise<Array<{
+    messageId: number;
+    caption: string;
+    fileSize: number;
+    mimeType: string;
+    fileName: string;
+  }>> {
+    this.ensureBrowser();
+    const tg = await this.getTg();
+    const channelId = await this.ensureStorageChannel();
+    console.log(`[cloud] syncFiles: fetching messages from topic ${topicId}...`);
+
+    try {
+      // iterMessages с replyTo=topMsgId возвращает сообщения из forum topic
+      // Берём по 100 за раз
+      const messages: any[] = [];
+      const iterator = tg.iterMessages(channelId, {
+        limit: 100,
+        replyTo: topicId, // forum topic filter
+      });
+
+      for await (const msg of iterator) {
+        if (!msg) continue;
+        if (!msg.media) continue; // только сообщения с файлами
+        messages.push(msg);
+      }
+
+      console.log(`[cloud] syncFiles ✓ found ${messages.length} file messages`);
+      return messages.map((msg: any) => {
+        // Извлекаем метаданные документа
+        let fileSize = 0;
+        let mimeType = "application/octet-stream";
+        let fileName = "file";
+
+        const doc = msg?.media?.document;
+        if (doc) {
+          fileSize = Number(doc.size?.toString?.() ?? doc.size ?? 0);
+          mimeType = doc.mimeType ?? "application/octet-stream";
+          // Имя файла: из attributes DocumentAttributeFilename
+          const fnameAttr = doc.attributes?.find((a: any) =>
+            a.className === "DocumentAttributeFilename"
+          );
+          if (fnameAttr?.fileName) {
+            fileName = fnameAttr.fileName;
+          }
+        }
+
+        return {
+          messageId: msg.id,
+          caption: msg.message ?? "", // caption = text сообщения
+          fileSize,
+          mimeType,
+          fileName,
+        };
+      });
+    } catch (e: any) {
+      console.error("[cloud] syncFiles failed:", e?.errorMessage || e?.message);
+      return [];
+    }
   }
 
   /** Получить или создать приватный канал-хранилище */
@@ -782,6 +936,22 @@ class MockCloudClient implements CloudClient {
   async forwardMessage(_messageId: number, _targetTopicId: number): Promise<number> {
     await sleep(400);
     return ++this.messageCounter;
+  }
+
+  async syncFolders(): Promise<Array<{ topicId: number; title: string }>> {
+    await sleep(300);
+    return [{ topicId: 1, title: "General" }];
+  }
+
+  async syncFiles(_topicId: number): Promise<Array<{
+    messageId: number;
+    caption: string;
+    fileSize: number;
+    mimeType: string;
+    fileName: string;
+  }>> {
+    await sleep(300);
+    return [];
   }
 }
 

@@ -57,6 +57,13 @@ interface StorageStore {
   setCurrentView: (view: AppView) => void;
   setSearch: (query: string) => Promise<void>;
 
+  /** Синхронизировать folders + files из Telegram (для multi-device) */
+  syncFromCloud: () => Promise<void>;
+  /** Синхронизировать files для конкретной папки */
+  syncFolderFiles: (folderId: string) => Promise<void>;
+  isSyncing: boolean;
+  lastSyncAt: number | null;
+
   createFolder: (name: string, icon: string) => Promise<Folder>;
   renameFolder: (id: string, name: string) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
@@ -92,6 +99,8 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
   downloads: [],
   isLoadingFolders: false,
   isLoadingFiles: false,
+  isSyncing: false,
+  lastSyncAt: null,
 
   loadFolders: async () => {
     set({ isLoadingFolders: true });
@@ -99,51 +108,71 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
       const folders = await getAllFolders();
 
       if (folders.length === 0) {
-        // Первый вход — нужно создать приватный канал + General topic в Telegram.
-        // Timeout 30s — если Telegram не отвечает, показываем ошибку, не зависаем.
-        console.log("[storage] first login: creating storage channel + General topic");
+        // Первый вход на этом устройстве — нужно синхронизировать folders из Telegram,
+        // либо создать General если Telegram-канала ещё нет.
+        console.log("[storage] first login: syncing folders from cloud...");
         try {
           const client = getCloudClient();
-          // ensureStorageChannel() вызывается внутри createFolder.
-          // Создаём General topic — это создаст и канал если его нет.
-          const generalTopicId = await Promise.race([
-            client.createFolder("General"),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("TIMEOUT_CREATE_FOLDER")), 30000)
+          // syncFolders() вызовет ensureStorageChannel() — создаст канал если его нет.
+          // Если канал новый — вернёт только General topic (или пустой список).
+          const cloudFolders = await Promise.race([
+            client.syncFolders(),
+            new Promise<any[]>((_, reject) =>
+              setTimeout(() => reject(new Error("TIMEOUT_SYNC_FOLDERS")), 30000)
             ),
           ]);
-          console.log("[storage] General topic created in Telegram, topicId:", generalTopicId);
-          const generalFolder: Folder = {
+          console.log("[storage] cloud folders:", cloudFolders.length);
+
+          if (cloudFolders.length === 0) {
+            // Канал существует, но topics нет — создаём General
+            console.log("[storage] no topics in cloud, creating General...");
+            const generalTopicId = await client.createFolder("General");
+            cloudFolders.push({ topicId: generalTopicId, title: "General" });
+          }
+
+          // Сохраняем все cloud folders в IndexedDB
+          const newFolders: Folder[] = cloudFolders.map((t, idx) => ({
             id: uuid(),
-            topicId: generalTopicId,
-            name: "General",
+            topicId: t.topicId,
+            name: t.title || "Untitled",
             icon: "📁",
-            sortOrder: 0,
+            sortOrder: idx,
             fileCount: 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),
-          };
-          await putFolder(generalFolder);
-          set({ folders: [generalFolder], currentFolderId: generalFolder.id, isLoadingFolders: false });
-          await get().loadFiles(generalFolder.id);
+          }));
+          for (const f of newFolders) {
+            await putFolder(f);
+          }
+          set({
+            folders: newFolders,
+            currentFolderId: newFolders[0]?.id ?? null,
+            isLoadingFolders: false,
+          });
+          if (newFolders[0]) {
+            await get().loadFiles(newFolders[0].id);
+          }
         } catch (e: any) {
-          console.error("[storage] createFolder failed:", e);
+          console.error("[storage] syncFolders failed:", e);
           set({ isLoadingFolders: false });
-          // Показываем ошибку пользователю
           const errMsg = e?.message || String(e);
-          if (errMsg === "TIMEOUT_CREATE_FOLDER") {
+          if (errMsg === "TIMEOUT_SYNC_FOLDERS") {
             toast.error("Таймаут подключения к Telegram. Проверьте интернет и обновите страницу.");
           } else {
-            toast.error("Не удалось создать хранилище: " + errMsg);
+            toast.error("Не удалось загрузить хранилище: " + errMsg);
           }
         }
       } else {
-        // Папки уже есть — просто загружаем
-        console.log("[storage] found", folders.length, "folders");
+        // Папки уже есть в IndexedDB — показываем сразу, потом фоново синхронизируем
+        console.log("[storage] found", folders.length, "local folders");
         set({ folders, isLoadingFolders: false });
         if (!get().currentFolderId) {
           await get().setCurrentFolder(folders[0].id);
         }
+        // Фоновая синхронизация — добавит новые папки с других устройств
+        get().syncFromCloud().catch((e) =>
+          console.warn("[storage] background sync failed:", e)
+        );
       }
     } catch (e) {
       console.error("[storage] loadFolders error", e);
@@ -154,11 +183,162 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
   loadFiles: async (folderId) => {
     set({ isLoadingFiles: true });
     try {
+      // Сначала показываем локальные файлы (быстро)
       const files = await getFilesByFolder(folderId);
       set({ files, isLoadingFiles: false });
+      // Потом фоново синхронизируем из Telegram (добавит файлы с других устройств)
+      get().syncFolderFiles(folderId).catch((e) =>
+        console.warn("[storage] background file sync failed:", e)
+      );
     } catch (e) {
       console.error("[storage] loadFiles error", e);
       set({ files: [], isLoadingFiles: false });
+    }
+  },
+
+  syncFromCloud: async () => {
+    if (get().isSyncing) {
+      console.log("[storage] sync already in progress, skipping");
+      return;
+    }
+    set({ isSyncing: true });
+    try {
+      console.log("[storage] syncFromCloud: starting full sync...");
+      const client = getCloudClient();
+      const cloudFolders = await client.syncFolders();
+      console.log("[storage] syncFromCloud: cloud folders:", cloudFolders.length);
+
+      const localFolders = await getAllFolders();
+      const localByTopicId = new Map(localFolders.map((f) => [f.topicId, f]));
+
+      // Добавить новые папки (созданные на других устройствах)
+      let addedCount = 0;
+      for (const cloudFolder of cloudFolders) {
+        if (!localByTopicId.has(cloudFolder.topicId)) {
+          const newFolder: Folder = {
+            id: uuid(),
+            topicId: cloudFolder.topicId,
+            name: cloudFolder.title || "Untitled",
+            icon: "📁",
+            sortOrder: localFolders.length + addedCount,
+            fileCount: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await putFolder(newFolder);
+          localFolders.push(newFolder);
+          addedCount++;
+        }
+      }
+      if (addedCount > 0) {
+        console.log("[storage] syncFromCloud: added", addedCount, "new folders");
+        set({ folders: [...localFolders] });
+      }
+
+      // Синхронизировать files для каждой папки
+      for (const folder of localFolders) {
+        await get().syncFolderFiles(folder.id);
+      }
+
+      set({ lastSyncAt: Date.now(), isSyncing: false });
+      console.log("[storage] syncFromCloud ✓ complete");
+      if (addedCount > 0) {
+        toast.success(`Синхронизация: добавлено ${addedCount} новых папок`);
+      }
+    } catch (e) {
+      console.error("[storage] syncFromCloud error:", e);
+      set({ isSyncing: false });
+    }
+  },
+
+  syncFolderFiles: async (folderId) => {
+    try {
+      const folder = get().folders.find((f) => f.id === folderId);
+      if (!folder) return;
+      const client = getCloudClient();
+      console.log(`[storage] syncFolderFiles for "${folder.name}" (topicId=${folder.topicId})`);
+
+      const cloudFiles = await client.syncFiles(folder.topicId);
+      console.log(`[storage] syncFolderFiles: ${cloudFiles.length} cloud files`);
+
+      const localFiles = await getFilesByFolder(folderId);
+      const localByMsgId = new Map(localFiles.map((f) => [f.messageId, f]));
+
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      for (const cf of cloudFiles) {
+        const existing = localByMsgId.get(cf.messageId);
+        // Пытаемся декодировать метаданные из caption
+        const { decodeMeta } = await import("@/lib/mtproto");
+        const meta = decodeMeta(cf.caption);
+
+        const name = meta?.name ?? cf.fileName ?? `file-${cf.messageId}`;
+        const mimeType = meta?.mimeType ?? cf.mimeType ?? "application/octet-stream";
+        const size = meta?.size ?? cf.fileSize ?? 0;
+        const encrypted = meta?.encrypted ?? false;
+        const isFavorite = meta?.isFavorite ?? false;
+
+        if (!existing) {
+          // Новый файл с другого устройства
+          const newFile: CloudFile = {
+            id: uuid(),
+            folderId,
+            messageId: cf.messageId,
+            teleFileId: String(cf.messageId),
+            name,
+            originalName: meta?.originalName ?? name,
+            mimeType,
+            size,
+            encrypted,
+            isFavorite,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await putFile(newFile);
+          addedCount++;
+        } else {
+          // Обновить если изменилось
+          const updated = {
+            ...existing,
+            name,
+            mimeType,
+            size,
+            encrypted,
+            isFavorite,
+            updatedAt: Date.now(),
+          };
+          await putFile(updated);
+          updatedCount++;
+        }
+      }
+
+      // Обновить state если текущая папка — эта
+      if (get().currentFolderId === folderId) {
+        const refreshedFiles = await getFilesByFolder(folderId);
+        set({ files: refreshedFiles });
+      }
+
+      // Обновить счётчик файлов в папке
+      const allFilesInFolder = await getFilesByFolder(folderId);
+      const updatedFolder = {
+        ...folder,
+        fileCount: allFilesInFolder.length,
+        updatedAt: Date.now(),
+      };
+      await putFolder(updatedFolder);
+      set({
+        folders: get().folders.map((f) => (f.id === folder.id ? updatedFolder : f)),
+      });
+
+      if (addedCount > 0 || updatedCount > 0) {
+        console.log(`[storage] syncFolderFiles ✓ added=${addedCount} updated=${updatedCount}`);
+        if (addedCount > 0) {
+          toast.success(`Синхронизация: ${addedCount} новых файл(ов) в "${folder.name}"`);
+        }
+      }
+    } catch (e) {
+      console.error("[storage] syncFolderFiles error:", e);
     }
   },
 
@@ -502,10 +682,19 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
   renameFile: async (fileId, newName) => {
     const file = get().files.find((f) => f.id === fileId);
     if (!file) return;
-    // ТЗ FL-06: обновление метаданных + editMessageCaption
     const client = getCloudClient();
+    // Обновляем caption в Telegram — там хранятся метаданные для синхронизации
+    const { encodeMeta } = await import("@/lib/mtproto");
+    const newMeta = encodeMeta({
+      name: newName,
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      size: file.size,
+      encrypted: file.encrypted,
+      isFavorite: file.isFavorite,
+    });
     try {
-      await client.editMessageCaption(file.messageId, newName);
+      await client.editMessageCaption(file.messageId, newMeta);
     } catch (e) {
       console.warn("[storage] editMessageCaption failed", e);
     }
@@ -566,6 +755,22 @@ export const useStorageStore = create<StorageStore>((set, get) => ({
     const updated = { ...file, isFavorite: !file.isFavorite, updatedAt: Date.now() };
     await putFile(updated);
     set({ files: get().files.map((f) => (f.id === fileId ? updated : f)) });
+    // Синхронизируем favorite в caption для других устройств
+    const { encodeMeta } = await import("@/lib/mtproto");
+    const client = getCloudClient();
+    const newMeta = encodeMeta({
+      name: updated.name,
+      originalName: updated.originalName,
+      mimeType: updated.mimeType,
+      size: updated.size,
+      encrypted: updated.encrypted,
+      isFavorite: updated.isFavorite,
+    });
+    try {
+      await client.editMessageCaption(updated.messageId, newMeta);
+    } catch (e) {
+      console.warn("[storage] editMessageCaption (favorite) failed", e);
+    }
   },
 
   restoreFromTrash: async (itemId) => {
